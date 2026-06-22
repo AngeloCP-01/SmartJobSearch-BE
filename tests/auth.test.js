@@ -19,7 +19,10 @@ test('register creates a user and returns an access token + refresh cookie', asy
   expect(res.body.user).toMatchObject({ email: creds.email, name: creds.name });
   expect(res.body.user.passwordHash).toBeUndefined();
   expect(typeof res.body.accessToken).toBe('string');
-  expect(res.headers['set-cookie'].join(';')).toMatch(/refreshToken=/);
+  const cookie = res.headers['set-cookie'].join(';');
+  expect(cookie).toMatch(/refreshToken=/);
+  expect(cookie).toMatch(/HttpOnly/i);
+  expect(cookie).toMatch(/Path=\/api\/auth/i);
 });
 
 test('register rejects a duplicate email with 409', async () => {

@@ -37,7 +37,8 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     await authService.logout(req.cookies[REFRESH_COOKIE]);
-    res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+    const { maxAge, ...clearOptions } = cookieOptions();
+    res.clearCookie(REFRESH_COOKIE, clearOptions);
     res.status(204).end();
   } catch (e) { next(e); }
 }
