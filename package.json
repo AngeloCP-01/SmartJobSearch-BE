@@ -1,0 +1,30 @@
+{
+  "name": "smart-job-search-crm-be",
+  "version": "1.0.0",
+  "description": "Smart Job Search CRM backend API (v1)",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "test": "jest --runInBand",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6",
+    "bcryptjs": "^2",
+    "cookie-parser": "^1",
+    "cors": "^2",
+    "dotenv": "^16",
+    "express": "^4.19",
+    "jsonwebtoken": "^9",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "jest": "^29",
+    "prisma": "^6",
+    "supertest": "^7"
+  }
+}
