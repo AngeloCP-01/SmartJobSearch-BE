@@ -2,7 +2,7 @@
 
 Status legend: ☐ Not started · ◐ In progress · ☑ Done · ⛔ Blocked
 
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-23
 **Master tracker:** `../TRACKER.md`
 
 | ID | Milestone | Status | Notes |
@@ -16,11 +16,12 @@ Status legend: ☐ Not started · ◐ In progress · ☑ Done · ⛔ Blocked
 | BE-6 | Deploy | ☐ | Railway/Render + managed Postgres (separate session) |
 
 ## Tests
-40 passing across 8 suites (health, middleware, authUtils, auth, companies, applications, interviews, dashboard).
+42 passing across 8 suites (health, middleware, authUtils, auth, companies, applications, interviews, dashboard).
 
 ## In Flight
-_BE-6 (deploy) remains; everything else complete on branch `feat/backend-v1`._
+_BE-0…BE-5 merged to `main`. Only BE-6 (deploy) remains. `main` is local-only (not pushed to origin)._
 
 ## Notes / Blockers
-- 2026-06-22 — BE-0…BE-5 implemented (TDD), committed on `feat/backend-v1`. Auth module passed a focused review (clearCookie attrs + cookie-attribute test assertions applied).
-- Local Postgres published on host port **5434** (5432 occupied by another project).
+- 2026-06-23 — BE-0…BE-5 implemented (TDD) and **merged to `main`** (`--no-ff`, feature branch deleted). 42/42 tests pass on merged main.
+- Reviews: focused auth review (Approved) + whole-branch review ("merge after fixes"). Applied refresh-token family revocation on reuse, expired-token reaping on login, salary cross-field validation, logout userId scoping, deterministic interview ordering.
+- 2026-06-22 — Local Postgres published on host port **5434** (5432 occupied by another project).

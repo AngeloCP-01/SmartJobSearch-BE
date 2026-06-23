@@ -1,9 +1,12 @@
 # Backend Tasks (v1)
 
 Spec: `docs/superpowers/specs/2026-06-22-job-search-crm-v1-design.md`
+Plan: `docs/superpowers/plans/2026-06-22-backend-v1.md`
 Master coordination: `../TASKS.md`
 
-> High-level scaffold. Granular per-step tasks (TDD steps, endpoints, schemas) are filled in when we run the implementation plan.
+> **Status (2026-06-23):** BE-0…BE-5 ✅ done — implemented TDD, reviewed, and merged to `main` (42 tests passing). Only **BE-6 (deploy)** remains.
+
+> Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
 ## BE-0 — Scaffold
 - Express app + server bootstrap (`app.js` / `server.js`)
