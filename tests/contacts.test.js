@@ -196,3 +196,15 @@ test('deleting a contact removes its application links (cascade)', async () => {
   const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
   expect(detail.body.contacts).toEqual([]);
 });
+
+test('PATCH /contacts/:id clears followUpDate with null', async () => {
+  const { token } = await registerAndLogin();
+  const created = await agent().post('/api/contacts').set(auth(token))
+    .send({ name: 'Recruiter', followUpDate: '2026-06-20T00:00:00.000Z' });
+  expect(created.body.followUpDate).not.toBeNull();
+
+  const patched = await agent().patch(`/api/contacts/${created.body.id}`).set(auth(token))
+    .send({ followUpDate: null });
+  expect(patched.status).toBe(200);
+  expect(patched.body.followUpDate).toBeNull();
+});
