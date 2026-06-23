@@ -22,7 +22,7 @@ Application responses now include `company { id, name }`; `PATCH /applications/:
 45 passing across 8 suites (adds 3 application-details tests).
 
 ## In Flight
-_BE-0…BE-5 merged to `main`. Only BE-6 (deploy) remains. `main` is local-only (not pushed to origin)._
+_BE-0…BE-5 + v1.5 merged to `main` (local only). **Deployment paused (2026-06-23); v2 is next** — see root `../TRACKER.md` (deploy notes) and `../V2-KICKOFF.md`._
 
 ## Notes / Blockers
 - 2026-06-23 — BE-0…BE-5 implemented (TDD) and **merged to `main`** (`--no-ff`, feature branch deleted). 42/42 tests pass on merged main.
