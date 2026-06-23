@@ -68,6 +68,16 @@ test('rejects a companyId owned by another user (404)', async () => {
   expect(res.status).toBe(404);
 });
 
+test('accepts a long source URL (over 200 chars)', async () => {
+  const { token } = await registerAndLogin();
+  const longSource = `https://www.linkedin.com/jobs/search/?keywords=fullstack&${'param=value&'.repeat(30)}`;
+  expect(longSource.length).toBeGreaterThan(200);
+  const res = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'Fullstack Software Developer', source: longSource });
+  expect(res.status).toBe(201);
+  expect(res.body.source).toBe(longSource);
+});
+
 test('rejects salaryMin greater than salaryMax (400)', async () => {
   const { token } = await registerAndLogin();
   const res = await agent().post('/api/applications').set(auth(token))

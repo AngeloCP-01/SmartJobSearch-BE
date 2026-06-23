@@ -12,7 +12,7 @@ const baseFields = {
   applicationDate: z.coerce.date().optional(),
   salaryMin: z.number().int().nonnegative().optional(),
   salaryMax: z.number().int().nonnegative().optional(),
-  source: z.string().max(200).optional(),
+  source: z.string().max(2000).optional(),
   jobDescription: z.string().max(20000).optional(),
   notes: z.string().max(20000).optional(),
 };
