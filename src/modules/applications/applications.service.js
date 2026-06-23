@@ -17,9 +17,22 @@ const list = (userId, { status } = {}) =>
   });
 
 async function getById(userId, id) {
-  const app = await prisma.application.findFirst({ where: { id, userId }, include: includeCompany });
+  const app = await prisma.application.findFirst({
+    where: { id, userId },
+    include: {
+      company: { select: { id: true, name: true } },
+      contactLinks: {
+        include: {
+          contact: {
+            select: { id: true, name: true, position: true, company: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
   if (!app) throw new NotFoundError('Application not found');
-  return app;
+  const { contactLinks, ...rest } = app;
+  return { ...rest, contacts: contactLinks.map((l) => l.contact) };
 }
 
 async function create(userId, data) {
