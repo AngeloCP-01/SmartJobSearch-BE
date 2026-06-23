@@ -24,6 +24,35 @@ test('create an application (defaults to Draft) and list it', async () => {
   expect(list.body).toHaveLength(1);
 });
 
+test('application responses include the linked company {id,name}', async () => {
+  const { token } = await registerAndLogin();
+  const companyId = await makeCompany(token, 'Acme');
+  const created = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'Backend Eng', companyId });
+  expect(created.body.company).toMatchObject({ id: companyId, name: 'Acme' });
+
+  const list = await agent().get('/api/applications').set(auth(token));
+  expect(list.body[0].company).toMatchObject({ id: companyId, name: 'Acme' });
+});
+
+test('an application with no company has company: null', async () => {
+  const { token } = await registerAndLogin();
+  const created = await agent().post('/api/applications').set(auth(token)).send({ position: 'X' });
+  expect(created.body.company).toBeNull();
+});
+
+test('PATCH with companyId:null unlinks the company', async () => {
+  const { token } = await registerAndLogin();
+  const companyId = await makeCompany(token, 'Acme');
+  const created = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'X', companyId });
+  const res = await agent().patch(`/api/applications/${created.body.id}`).set(auth(token))
+    .send({ companyId: null });
+  expect(res.status).toBe(200);
+  expect(res.body.companyId).toBeNull();
+  expect(res.body.company).toBeNull();
+});
+
 test('position is required (400)', async () => {
   const { token } = await registerAndLogin();
   const res = await agent().post('/api/applications').set(auth(token)).send({});
