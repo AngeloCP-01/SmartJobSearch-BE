@@ -63,3 +63,20 @@ test('categorizes interviews and follow-ups into the right buckets', async () =>
 
   expect(res.body.counts).toEqual({ total: 4, interviews: 2, followUps: 2 });
 });
+
+test('reminders are scoped to the current user', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+
+  const appId = (await agent().post('/api/applications').set(auth(a.token))
+    .send({ position: 'Theirs' })).body.id;
+  await agent().post('/api/interviews').set(auth(a.token))
+    .send({ applicationId: appId, type: 'HR', scheduledAt: daysFromNow(2) });
+  await agent().post('/api/contacts').set(auth(a.token))
+    .send({ name: 'Their Contact', followUpDate: daysFromNow(-1) });
+
+  const res = await agent().get('/api/reminders').set(auth(b.token));
+  expect(res.body.counts).toEqual({ total: 0, interviews: 0, followUps: 0 });
+  expect(res.body.interviews.upcoming).toHaveLength(0);
+  expect(res.body.followUps.due).toHaveLength(0);
+});
