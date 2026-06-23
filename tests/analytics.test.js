@@ -114,3 +114,18 @@ test('over time buckets by month with applicationDate/createdAt fallback and zer
   // only the 3 in-window apps are counted across the whole window
   expect(res.body.overTime.reduce((s, b) => s + b.count, 0)).toBe(3);
 });
+
+test('analytics is scoped to the current user', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+
+  const r = await agent().post('/api/applications').set(auth(a.token)).send({ position: 'Theirs' });
+  await agent().patch(`/api/applications/${r.body.id}/status`).set(auth(a.token)).send({ status: 'Offer' });
+  await agent().post('/api/interviews').set(auth(a.token)).send({ applicationId: r.body.id, type: 'HR' });
+
+  const res = await agent().get('/api/analytics').set(auth(b.token));
+  expect(res.body.metrics.totalApplications).toBe(0);
+  expect(res.body.metrics.offerRate).toBe(0);
+  expect(res.body.funnel.every((f) => f.count === 0)).toBe(true);
+  expect(res.body.overTime.every((bk) => bk.count === 0)).toBe(true);
+});
