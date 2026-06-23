@@ -16,10 +16,24 @@ function monthKeys(now = new Date()) {
 }
 
 async function analytics(userId) {
-  const total = await prisma.application.count({ where: { userId } });
+  const [total, interviewed, grouped] = await Promise.all([
+    prisma.application.count({ where: { userId } }),
+    prisma.application.count({ where: { userId, interviews: { some: {} } } }),
+    prisma.application.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
+  ]);
+
+  const byStatus = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
+  const rate = (n) => (total === 0 ? 0 : n / total);
+  const offers = (byStatus.Offer || 0) + (byStatus.Accepted || 0);
+
   return {
-    metrics: { totalApplications: total, interviewRate: 0, offerRate: 0, rejectionRate: 0 },
-    funnel: STATUSES.map((status) => ({ status, count: 0 })),
+    metrics: {
+      totalApplications: total,
+      interviewRate: rate(interviewed),
+      offerRate: rate(offers),
+      rejectionRate: rate(byStatus.Rejected || 0),
+    },
+    funnel: STATUSES.map((status) => ({ status, count: byStatus[status] || 0 })),
     overTime: monthKeys().map((month) => ({ month, count: 0 })),
   };
 }
