@@ -17,15 +17,42 @@ const shapeFollowUp = (c) => ({
 });
 
 async function reminders(userId) {
-  void prisma; void WINDOW_DAYS; void interviewInclude; void companyInclude;
-  void shapeInterview; void shapeFollowUp; void userId;
-  const interviews = { upcoming: [], overdue: [] };
-  const followUps = { due: [], upcoming: [] };
-  return {
-    interviews,
-    followUps,
-    counts: { total: 0, interviews: 0, followUps: 0 },
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const [upcomingI, overdueI, dueF, upcomingF] = await Promise.all([
+    prisma.interview.findMany({
+      where: { userId, scheduledAt: { gte: now, lte: windowEnd } },
+      orderBy: { scheduledAt: 'asc' },
+      include: interviewInclude,
+    }),
+    prisma.interview.findMany({
+      where: { userId, scheduledAt: { lt: now }, OR: [{ result: null }, { result: 'Pending' }] },
+      orderBy: { scheduledAt: 'desc' },
+      include: interviewInclude,
+    }),
+    prisma.contact.findMany({
+      where: { userId, followUpDate: { lte: now } },
+      orderBy: { followUpDate: 'asc' },
+      include: companyInclude,
+    }),
+    prisma.contact.findMany({
+      where: { userId, followUpDate: { gt: now, lte: windowEnd } },
+      orderBy: { followUpDate: 'asc' },
+      include: companyInclude,
+    }),
+  ]);
+
+  const interviews = { upcoming: upcomingI.map(shapeInterview), overdue: overdueI.map(shapeInterview) };
+  const followUps = { due: dueF.map(shapeFollowUp), upcoming: upcomingF.map(shapeFollowUp) };
+  const counts = {
+    interviews: interviews.upcoming.length + interviews.overdue.length,
+    followUps: followUps.due.length + followUps.upcoming.length,
+    total: 0,
   };
+  counts.total = counts.interviews + counts.followUps;
+
+  return { interviews, followUps, counts };
 }
 
 module.exports = { reminders };
