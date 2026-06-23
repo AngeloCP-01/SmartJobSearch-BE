@@ -15,11 +15,27 @@ function monthKeys(now = new Date()) {
   return keys;
 }
 
+async function overTime(userId) {
+  const keys = monthKeys();
+  const start = new Date(`${keys[0]}-01T00:00:00.000Z`);
+  const rows = await prisma.$queryRaw`
+    SELECT to_char(date_trunc('month', COALESCE("applicationDate", "createdAt")), 'YYYY-MM') AS month,
+           COUNT(*)::int AS count
+    FROM "Application"
+    WHERE "userId" = ${userId}
+      AND COALESCE("applicationDate", "createdAt") >= ${start}
+    GROUP BY 1
+  `;
+  const counts = Object.fromEntries(rows.map((r) => [r.month, Number(r.count)]));
+  return keys.map((month) => ({ month, count: counts[month] || 0 }));
+}
+
 async function analytics(userId) {
-  const [total, interviewed, grouped] = await Promise.all([
+  const [total, interviewed, grouped, over] = await Promise.all([
     prisma.application.count({ where: { userId } }),
     prisma.application.count({ where: { userId, interviews: { some: {} } } }),
     prisma.application.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
+    overTime(userId),
   ]);
 
   const byStatus = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
@@ -34,7 +50,7 @@ async function analytics(userId) {
       rejectionRate: rate(byStatus.Rejected || 0),
     },
     funnel: STATUSES.map((status) => ({ status, count: byStatus[status] || 0 })),
-    overTime: monthKeys().map((month) => ({ month, count: 0 })),
+    overTime: over,
   };
 }
 
