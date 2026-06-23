@@ -26,11 +26,14 @@ New `Contact` model (per-user; optional `companyId` FK; name, email, position, p
 - **Remember me:** login/register accept `rememberMe` (carried in the refresh JWT `rmb` claim, preserved across rotation); checked → 30-day token + persistent cookie, unchecked → 1-day token + session cookie.
 - **Application `source`** max raised 200 → 2000 (real job-board URLs).
 
+## v2 — Analytics (backend slice) ☑ (2026-06-23, merged to `main`)
+New read-only `analytics/` module: one composite `GET /api/analytics` → `{ metrics, funnel, overTime }`, all `userId`-scoped, no schema change. **Metrics:** `totalApplications`, `interviewRate` (apps with ≥1 interview ÷ total), `offerRate` ((Offer+Accepted) ÷ total), `rejectionRate` (Rejected ÷ total); rates are `0..1`, `0` when total is 0. **Funnel:** count by status, all 9 statuses in canonical order, zero-filled. **overTime:** last 12 months, bucketed by `COALESCE(applicationDate, createdAt)` via a parameterized `date_trunc` raw query, zero-filled. Spec: `docs/superpowers/specs/2026-06-23-analytics-design.md`; plan: `docs/superpowers/plans/2026-06-23-analytics-backend.md`.
+
 ## Tests
-69 passing across 9 suites (adds the `contacts` suite + auth rotation-race / remember-me + long-source tests).
+74 passing across 10 suites (adds the `analytics` suite: 401, empty-shape, metrics+funnel, over-time bucketing w/ createdAt fallback, cross-user isolation).
 
 ## In Flight
-_v2 Contacts + post-Contacts fixes merged to `main` (local only). **Deployment paused.** Next v2 slice: **Analytics** (then Reminders) — start in a new session via root `../V2-ANALYTICS-KICKOFF.md`. See root `../TRACKER.md` for the full v2 module status._
+_v2 Contacts + Analytics merged to `main` (local only). **Deployment paused.** Next v2 slice: **Reminders** (V2-3) — start in a new session. See root `../TRACKER.md` for the full v2 module status._
 
 ## Notes / Blockers
 - 2026-06-23 — BE-0…BE-5 implemented (TDD) and **merged to `main`** (`--no-ff`, feature branch deleted). 42/42 tests pass on merged main.
