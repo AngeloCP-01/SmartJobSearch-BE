@@ -7,7 +7,7 @@ const STATUSES = [
 
 const baseFields = {
   position: z.string().min(1).max(200),
-  companyId: z.string().uuid().optional(),
+  companyId: z.string().uuid().nullable().optional(),
   status: z.enum(STATUSES).optional(),
   applicationDate: z.coerce.date().optional(),
   salaryMin: z.number().int().nonnegative().optional(),
