@@ -15,8 +15,11 @@ Status legend: ☐ Not started · ◐ In progress · ☑ Done · ⛔ Blocked
 | BE-5 | Dashboard | ☑ | `GET /dashboard/summary` |
 | BE-6 | Deploy | ☐ | Railway/Render + managed Postgres (separate session) |
 
+## v1.5 — Application Details (backend slice) ☑ (2026-06-23)
+Application responses now include `company { id, name }`; `PATCH /applications/:id` with `companyId: null` unlinks. Branch `feat/application-details`. (Frontend drawer lives in the FE repo.)
+
 ## Tests
-42 passing across 8 suites (health, middleware, authUtils, auth, companies, applications, interviews, dashboard).
+45 passing across 8 suites (adds 3 application-details tests).
 
 ## In Flight
 _BE-0…BE-5 merged to `main`. Only BE-6 (deploy) remains. `main` is local-only (not pushed to origin)._
