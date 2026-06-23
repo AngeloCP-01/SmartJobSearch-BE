@@ -33,9 +33,10 @@ New read-only `analytics/` module: one composite `GET /api/analytics` → `{ met
 74 passing across 10 suites (adds the `analytics` suite: 401, empty-shape, metrics+funnel, over-time bucketing w/ createdAt fallback, cross-user isolation).
 
 ## In Flight
-_v2 Contacts + Analytics merged to `main` (local only). **Deployment paused.** Next v2 slice: **Reminders** (V2-3) — start in a new session. See root `../TRACKER.md` for the full v2 module status._
+_All three planned v2 slices (Contacts, Analytics, Reminders) merged to `main` (local only). **79/79 tests** on merged main. **Deployment paused.** No v2 feature work outstanding — next big-ticket item is **Deployment** (deferred). See root `../TRACKER.md` for the full v2 module status._
 
 ## Notes / Blockers
+- 2026-06-23 — **V2-3 Reminders (BE) done & merged** (`515eebb`, `--no-ff`, branch deleted). New read-only `reminders/` module: composite `GET /api/reminders` → 4 `userId`-scoped buckets over a 7-day window (`interviews.{upcoming,overdue}`, `followUps.{due,upcoming}`) + `counts`, via `dashboard`/`analytics`-style `Promise.all`; no DB migration. Contacts Zod widened (`followUpDate: z.coerce.date().nullable().optional()`) so `PATCH /contacts/:id {followUpDate:null}` clears a follow-up. TDD: 5 new tests (1 contacts null-clear + 4 reminders: auth, empty, bucketing, cross-user isolation) → **79 total**. Read-only subagent review clean (no blockers).
 - 2026-06-23 — BE-0…BE-5 implemented (TDD) and **merged to `main`** (`--no-ff`, feature branch deleted). 42/42 tests pass on merged main.
 - Reviews: focused auth review (Approved) + whole-branch review ("merge after fixes"). Applied refresh-token family revocation on reuse, expired-token reaping on login, salary cross-field validation, logout userId scoping, deterministic interview ordering.
 - 2026-06-22 — Local Postgres published on host port **5434** (5432 occupied by another project).
