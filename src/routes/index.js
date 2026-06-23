@@ -5,6 +5,7 @@ const applicationsRoutes = require('../modules/applications/applications.routes'
 const interviewsRoutes = require('../modules/interviews/interviews.routes');
 const contactsRoutes = require('../modules/contacts/contacts.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
+const analyticsRoutes = require('../modules/analytics/analytics.routes');
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/contacts', contactsRoutes);
 router.use('/applications', applicationsRoutes);
 router.use('/interviews', interviewsRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/analytics', analyticsRoutes);
 
 module.exports = router;
