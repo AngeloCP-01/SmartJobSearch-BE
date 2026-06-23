@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const prisma = require('../../shared/database/prisma');
 const { hashPassword, verifyPassword } = require('../../shared/utils/password');
 const {
-  signAccessToken, signRefreshToken, verifyRefreshToken, REFRESH_TTL_DAYS,
+  signAccessToken, signRefreshToken, verifyRefreshToken, refreshTtlDays,
 } = require('../../shared/utils/jwt');
 const {
   ConflictError, UnauthorizedError, NotFoundError,
@@ -11,24 +11,24 @@ const {
 const hashToken = (jti) => crypto.createHash('sha256').update(jti).digest('hex');
 const publicUser = (u) => ({ id: u.id, email: u.email, name: u.name, createdAt: u.createdAt });
 
-async function issueTokens(userId) {
+async function issueTokens(userId, rememberMe = false) {
   const jti = crypto.randomUUID();
-  const refreshToken = signRefreshToken(userId, jti);
-  const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const refreshToken = signRefreshToken(userId, jti, rememberMe);
+  const expiresAt = new Date(Date.now() + refreshTtlDays(rememberMe) * 24 * 60 * 60 * 1000);
   await prisma.refreshToken.create({ data: { userId, tokenHash: hashToken(jti), expiresAt } });
-  return { accessToken: signAccessToken(userId), refreshToken };
+  return { accessToken: signAccessToken(userId), refreshToken, rememberMe: Boolean(rememberMe) };
 }
 
-async function register({ email, password, name }) {
+async function register({ email, password, name, rememberMe }) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new ConflictError('Email already registered');
   const user = await prisma.user.create({
     data: { email, passwordHash: await hashPassword(password), name },
   });
-  return { user: publicUser(user), ...(await issueTokens(user.id)) };
+  return { user: publicUser(user), ...(await issueTokens(user.id, rememberMe)) };
 }
 
-async function login({ email, password }) {
+async function login({ email, password, rememberMe }) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     throw new UnauthorizedError('Invalid credentials');
@@ -37,7 +37,7 @@ async function login({ email, password }) {
   await prisma.refreshToken.deleteMany({
     where: { userId: user.id, expiresAt: { lt: new Date() } },
   });
-  return { user: publicUser(user), ...(await issueTokens(user.id)) };
+  return { user: publicUser(user), ...(await issueTokens(user.id, rememberMe)) };
 }
 
 async function refresh(refreshToken) {
@@ -66,7 +66,7 @@ async function refresh(refreshToken) {
   // gets a clean 401 instead of crashing the request.
   const { count } = await prisma.refreshToken.deleteMany({ where: { id: stored.id } });
   if (count === 0) throw new UnauthorizedError('Invalid refresh token');
-  return issueTokens(payload.sub);
+  return issueTokens(payload.sub, Boolean(payload.rmb));
 }
 
 async function logout(refreshToken) {
