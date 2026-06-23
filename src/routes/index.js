@@ -6,6 +6,7 @@ const interviewsRoutes = require('../modules/interviews/interviews.routes');
 const contactsRoutes = require('../modules/contacts/contacts.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const analyticsRoutes = require('../modules/analytics/analytics.routes');
+const remindersRoutes = require('../modules/reminders/reminders.routes');
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use('/applications', applicationsRoutes);
 router.use('/interviews', interviewsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/reminders', remindersRoutes);
 
 module.exports = router;
