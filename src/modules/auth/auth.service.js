@@ -57,10 +57,15 @@ async function refresh(refreshToken) {
     throw new UnauthorizedError('Invalid refresh token');
   }
   if (stored.expiresAt < new Date()) {
-    await prisma.refreshToken.delete({ where: { id: stored.id } });
+    await prisma.refreshToken.deleteMany({ where: { id: stored.id } });
     throw new UnauthorizedError('Invalid refresh token');
   }
-  await prisma.refreshToken.delete({ where: { id: stored.id } });
+  // Atomically consume the token. deleteMany is idempotent — it won't throw
+  // P2025 if a concurrent refresh already rotated this row away. Only the caller
+  // that actually deletes it (count === 1) may mint new tokens; a racing loser
+  // gets a clean 401 instead of crashing the request.
+  const { count } = await prisma.refreshToken.deleteMany({ where: { id: stored.id } });
+  if (count === 0) throw new UnauthorizedError('Invalid refresh token');
   return issueTokens(payload.sub);
 }
 

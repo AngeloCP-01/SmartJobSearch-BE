@@ -117,3 +117,19 @@ test('reusing a rotated refresh token revokes the whole family', async () => {
   const afterRevoke = await agent().post('/api/auth/refresh').set('Cookie', newC);
   expect(afterRevoke.status).toBe(401);
 });
+
+test('concurrent refresh with the same token never 500s (rotation race)', async () => {
+  const { cookie } = await registerAndLogin();
+  const c = refreshCookie(cookie);
+  // Two refreshes fire at once with the same cookie (the real scenario: several
+  // requests 401 together and each triggers /auth/refresh). The rotation must
+  // not crash with a Prisma "record not found for delete" (P2025) 500.
+  const results = await Promise.all([
+    agent().post('/api/auth/refresh').set('Cookie', c),
+    agent().post('/api/auth/refresh').set('Cookie', c),
+  ]);
+  const codes = results.map((r) => r.status);
+  expect(codes.some((s) => s >= 500)).toBe(false);
+  expect(codes).toContain(200);
+  expect(codes.every((s) => s === 200 || s === 401)).toBe(true);
+});
