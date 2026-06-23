@@ -1,6 +1,7 @@
 const { agent } = require('./helpers/testApp');
 const { prisma, resetDb } = require('./helpers/db');
 const { registerAndLogin } = require('./helpers/auth');
+const { monthKeys } = require('../src/modules/analytics/analytics.service');
 
 beforeEach(resetDb);
 afterAll(async () => { await prisma.$disconnect(); });
@@ -12,17 +13,6 @@ const STATUS_ORDER = [
   'Final_Interview', 'Offer', 'Accepted', 'Rejected', 'Withdrawn',
 ];
 
-const MONTHS = 12;
-function monthKeysForTest(now = new Date()) {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  d.setUTCMonth(d.getUTCMonth() - (MONTHS - 1));
-  const keys = [];
-  for (let i = 0; i < MONTHS; i += 1) {
-    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
-    d.setUTCMonth(d.getUTCMonth() + 1);
-  }
-  return keys;
-}
 function midMonth(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, 15, 12, 0, 0)); // mid-month noon → TZ-safe bucket
@@ -86,7 +76,7 @@ test('metrics and funnel reflect seeded applications and interviews', async () =
 
 test('over time buckets by month with applicationDate/createdAt fallback and zero-fill', async () => {
   const { user, token } = await registerAndLogin();
-  const keys = monthKeysForTest();
+  const keys = monthKeys();
   const current = keys[11];
   const prior = keys[6];
 

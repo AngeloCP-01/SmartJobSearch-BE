@@ -18,6 +18,11 @@ function monthKeys(now = new Date()) {
 async function overTime(userId) {
   const keys = monthKeys();
   const start = new Date(`${keys[0]}-01T00:00:00.000Z`);
+  // UTC alignment note: `date_trunc` here operates on the raw stored value because
+  // Prisma maps DateTime → Postgres `timestamp` (no time zone), so no session-TZ
+  // conversion happens — it matches monthKeys()'s UTC math. If these columns ever
+  // become `timestamptz` (@db.Timestamptz), buckets near month boundaries would
+  // drift vs the JS UTC keys and this would need a fixed `AT TIME ZONE 'UTC'`.
   const rows = await prisma.$queryRaw`
     SELECT to_char(date_trunc('month', COALESCE("applicationDate", "createdAt")), 'YYYY-MM') AS month,
            COUNT(*)::int AS count
