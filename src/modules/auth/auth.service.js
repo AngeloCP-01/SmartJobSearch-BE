@@ -33,6 +33,10 @@ async function login({ email, password }) {
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     throw new UnauthorizedError('Invalid credentials');
   }
+  // Reap this user's expired refresh tokens so the table can't grow unbounded.
+  await prisma.refreshToken.deleteMany({
+    where: { userId: user.id, expiresAt: { lt: new Date() } },
+  });
   return { user: publicUser(user), ...(await issueTokens(user.id)) };
 }
 
@@ -46,7 +50,14 @@ async function refresh(refreshToken) {
   const stored = await prisma.refreshToken.findFirst({
     where: { tokenHash: hashToken(payload.jti), userId: payload.sub },
   });
-  if (!stored || stored.expiresAt < new Date()) {
+  if (!stored) {
+    // Valid signature but the token isn't in the store: it was already rotated
+    // or logged out. Treat as reuse and revoke the user's whole token family.
+    await prisma.refreshToken.deleteMany({ where: { userId: payload.sub } });
+    throw new UnauthorizedError('Invalid refresh token');
+  }
+  if (stored.expiresAt < new Date()) {
+    await prisma.refreshToken.delete({ where: { id: stored.id } });
     throw new UnauthorizedError('Invalid refresh token');
   }
   await prisma.refreshToken.delete({ where: { id: stored.id } });
@@ -57,7 +68,9 @@ async function logout(refreshToken) {
   if (!refreshToken) return;
   let payload;
   try { payload = verifyRefreshToken(refreshToken); } catch (e) { return; }
-  await prisma.refreshToken.deleteMany({ where: { tokenHash: hashToken(payload.jti) } });
+  await prisma.refreshToken.deleteMany({
+    where: { tokenHash: hashToken(payload.jti), userId: payload.sub },
+  });
 }
 
 async function getMe(userId) {

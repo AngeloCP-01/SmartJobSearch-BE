@@ -10,7 +10,7 @@ async function assertApplication(userId, applicationId) {
 const list = (userId, { applicationId } = {}) =>
   prisma.interview.findMany({
     where: { userId, ...(applicationId ? { applicationId } : {}) },
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'asc' }],
   });
 
 async function getById(userId, id) {

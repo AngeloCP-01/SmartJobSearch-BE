@@ -39,6 +39,13 @@ test('rejects a companyId owned by another user (404)', async () => {
   expect(res.status).toBe(404);
 });
 
+test('rejects salaryMin greater than salaryMax (400)', async () => {
+  const { token } = await registerAndLogin();
+  const res = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'X', salaryMin: 100, salaryMax: 50 });
+  expect(res.status).toBe(400);
+});
+
 test('PATCH /:id/status moves the application (Kanban)', async () => {
   const { token } = await registerAndLogin();
   const created = await agent().post('/api/applications').set(auth(token))

@@ -104,3 +104,16 @@ test('a refresh token cannot be reused after rotation', async () => {
   const reuse = await agent().post('/api/auth/refresh').set('Cookie', c);
   expect(reuse.status).toBe(401);
 });
+
+test('reusing a rotated refresh token revokes the whole family', async () => {
+  const { cookie } = await registerAndLogin();
+  const oldC = refreshCookie(cookie);
+  const rotated = await agent().post('/api/auth/refresh').set('Cookie', oldC);
+  const newC = refreshCookie(rotated.headers['set-cookie']);
+  // reusing the old (already-rotated) token triggers family revocation
+  const reuse = await agent().post('/api/auth/refresh').set('Cookie', oldC);
+  expect(reuse.status).toBe(401);
+  // the freshly issued token is now revoked too
+  const afterRevoke = await agent().post('/api/auth/refresh').set('Cookie', newC);
+  expect(afterRevoke.status).toBe(401);
+});
