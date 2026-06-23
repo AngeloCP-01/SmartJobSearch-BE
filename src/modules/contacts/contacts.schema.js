@@ -8,7 +8,7 @@ const baseFields = {
   linkedinUrl: z.string().url().max(500).optional(),
   notes: z.string().max(20000).optional(),
   companyId: z.string().uuid().nullable().optional(),
-  followUpDate: z.coerce.date().optional(),
+  followUpDate: z.coerce.date().nullable().optional(),
 };
 
 const createContactSchema = z.object(baseFields);
