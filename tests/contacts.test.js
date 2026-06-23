@@ -178,3 +178,21 @@ test('cannot link to another user\'s application (404)', async () => {
     .send({ contactId: c.body.id });
   expect(res.status).toBe(404);
 });
+
+test('unlinking a contact that is not linked is idempotent (204)', async () => {
+  const { token } = await registerAndLogin();
+  const appId = await makeApplication(token);
+  const c = await agent().post('/api/contacts').set(auth(token)).send({ name: 'Jane' });
+  const res = await agent().delete(`/api/applications/${appId}/contacts/${c.body.id}`).set(auth(token));
+  expect(res.status).toBe(204);
+});
+
+test('deleting a contact removes its application links (cascade)', async () => {
+  const { token } = await registerAndLogin();
+  const appId = await makeApplication(token);
+  const c = await agent().post('/api/contacts').set(auth(token)).send({ name: 'Jane' });
+  await agent().post(`/api/applications/${appId}/contacts`).set(auth(token)).send({ contactId: c.body.id });
+  await agent().delete(`/api/contacts/${c.body.id}`).set(auth(token));
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.contacts).toEqual([]);
+});
