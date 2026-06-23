@@ -41,6 +41,7 @@ model User {
   companies     Company[]
   applications  Application[]
   interviews    Interview[]
+  contacts      Contact[]
   refreshTokens RefreshToken[]
 }
 
@@ -68,6 +69,7 @@ model Company {
   notes        String?
   createdAt    DateTime      @default(now())
   applications Application[]
+  contacts     Contact[]
 
   @@index([userId])
 }
@@ -89,6 +91,7 @@ model Application {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   interviews      Interview[]
+  contactLinks    ApplicationContact[]
 
   @@index([userId])
 }
@@ -108,4 +111,38 @@ model Interview {
 
   @@index([userId])
   @@index([applicationId])
+}
+
+model Contact {
+  id               String               @id @default(uuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String?
+  company          Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  name             String
+  email            String?
+  position         String?
+  phone            String?
+  linkedinUrl      String?
+  notes            String?
+  followUpDate     DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  applicationLinks ApplicationContact[]
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model ApplicationContact {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([applicationId, contactId])
+  @@index([applicationId])
+  @@index([contactId])
 }
