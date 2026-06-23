@@ -4,7 +4,9 @@ Spec: `docs/superpowers/specs/2026-06-22-job-search-crm-v1-design.md`
 Plan: `docs/superpowers/plans/2026-06-22-backend-v1.md`
 Master coordination: `../TASKS.md`
 
-> **Status (2026-06-23):** BE-0…BE-5 ✅ done — implemented TDD, reviewed, and merged to `main` (42 tests passing). Only **BE-6 (deploy)** remains.
+> **Status (2026-06-23):** BE-0…BE-5 ✅ + **v1.5 application-details** ✅ — implemented TDD, reviewed, and merged to `main` (45 tests passing). Only **BE-6 (deploy)** remains.
+>
+> **v1.5 (application details):** application responses include `company {id,name}`; `PATCH` with `companyId: null` unlinks. Spec: `docs/superpowers/specs/2026-06-23-application-details-design.md`.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
