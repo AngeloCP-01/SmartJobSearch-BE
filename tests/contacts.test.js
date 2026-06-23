@@ -109,3 +109,72 @@ test('a user cannot read another user\'s contact (404)', async () => {
   const res = await agent().get(`/api/contacts/${c.body.id}`).set(auth(b.token));
   expect(res.status).toBe(404);
 });
+
+async function makeApplication(token, position = 'Backend Eng') {
+  const res = await agent().post('/api/applications').set(auth(token)).send({ position });
+  return res.body.id;
+}
+
+test('link a contact to an application; it appears on application detail', async () => {
+  const { token } = await registerAndLogin();
+  const companyId = await makeCompany(token, 'Acme');
+  const appId = await makeApplication(token);
+  const c = await agent().post('/api/contacts').set(auth(token))
+    .send({ name: 'Jane', position: 'Recruiter', companyId });
+
+  const link = await agent().post(`/api/applications/${appId}/contacts`).set(auth(token))
+    .send({ contactId: c.body.id });
+  expect(link.status).toBe(201);
+
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.contacts).toHaveLength(1);
+  expect(detail.body.contacts[0]).toMatchObject({ id: c.body.id, name: 'Jane', position: 'Recruiter' });
+  expect(detail.body.contacts[0].company).toMatchObject({ id: companyId, name: 'Acme' });
+});
+
+test('linking the same contact twice returns 409', async () => {
+  const { token } = await registerAndLogin();
+  const appId = await makeApplication(token);
+  const c = await agent().post('/api/contacts').set(auth(token)).send({ name: 'Jane' });
+  await agent().post(`/api/applications/${appId}/contacts`).set(auth(token)).send({ contactId: c.body.id });
+  const dup = await agent().post(`/api/applications/${appId}/contacts`).set(auth(token)).send({ contactId: c.body.id });
+  expect(dup.status).toBe(409);
+});
+
+test('unlink a contact from an application', async () => {
+  const { token } = await registerAndLogin();
+  const appId = await makeApplication(token);
+  const c = await agent().post('/api/contacts').set(auth(token)).send({ name: 'Jane' });
+  await agent().post(`/api/applications/${appId}/contacts`).set(auth(token)).send({ contactId: c.body.id });
+  const unlink = await agent().delete(`/api/applications/${appId}/contacts/${c.body.id}`).set(auth(token));
+  expect(unlink.status).toBe(204);
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.contacts).toHaveLength(0);
+});
+
+test('an application with no contacts has contacts: []', async () => {
+  const { token } = await registerAndLogin();
+  const appId = await makeApplication(token);
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.contacts).toEqual([]);
+});
+
+test('cannot link another user\'s contact (404)', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const appId = await makeApplication(b.token);
+  const c = await agent().post('/api/contacts').set(auth(a.token)).send({ name: 'Jane' });
+  const res = await agent().post(`/api/applications/${appId}/contacts`).set(auth(b.token))
+    .send({ contactId: c.body.id });
+  expect(res.status).toBe(404);
+});
+
+test('cannot link to another user\'s application (404)', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const appId = await makeApplication(a.token);
+  const c = await agent().post('/api/contacts').set(auth(b.token)).send({ name: 'Jane' });
+  const res = await agent().post(`/api/applications/${appId}/contacts`).set(auth(b.token))
+    .send({ contactId: c.body.id });
+  expect(res.status).toBe(404);
+});

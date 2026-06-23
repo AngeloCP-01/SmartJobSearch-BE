@@ -4,6 +4,7 @@ const { validate } = require('../../shared/middleware/validate');
 const {
   createApplicationSchema, updateApplicationSchema, statusSchema,
 } = require('./applications.schema');
+const { linkContactSchema } = require('../contacts/contacts.schema');
 const ctrl = require('./applications.controller');
 
 const router = Router();
@@ -15,5 +16,7 @@ router.get('/:id', ctrl.getById);
 router.patch('/:id', validate(updateApplicationSchema), ctrl.update);
 router.patch('/:id/status', validate(statusSchema), ctrl.updateStatus);
 router.delete('/:id', ctrl.remove);
+router.post('/:id/contacts', validate(linkContactSchema), ctrl.linkContact);
+router.delete('/:id/contacts/:contactId', ctrl.unlinkContact);
 
 module.exports = router;
