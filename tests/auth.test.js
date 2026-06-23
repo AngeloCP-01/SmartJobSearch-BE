@@ -82,6 +82,33 @@ test('refresh issues a new access token from the refresh cookie', async () => {
   expect(res.headers['set-cookie'].join(';')).toMatch(/refreshToken=/);
 });
 
+test('login with rememberMe sets a persistent (Max-Age) cookie', async () => {
+  await agent().post('/api/auth/register').send(creds);
+  const res = await agent().post('/api/auth/login')
+    .send({ email: creds.email, password: creds.password, rememberMe: true });
+  expect(res.status).toBe(200);
+  expect(refreshCookie(res.headers['set-cookie'])).toMatch(/Max-Age=\d+/i);
+});
+
+test('login without rememberMe sets a session cookie (no Max-Age/Expires)', async () => {
+  await agent().post('/api/auth/register').send(creds);
+  const res = await agent().post('/api/auth/login')
+    .send({ email: creds.email, password: creds.password });
+  const cookie = refreshCookie(res.headers['set-cookie']);
+  expect(cookie).not.toMatch(/Max-Age=/i);
+  expect(cookie).not.toMatch(/Expires=/i);
+});
+
+test('refresh preserves a remembered (persistent) session', async () => {
+  await agent().post('/api/auth/register').send(creds);
+  const login = await agent().post('/api/auth/login')
+    .send({ email: creds.email, password: creds.password, rememberMe: true });
+  const c = refreshCookie(login.headers['set-cookie']);
+  const res = await agent().post('/api/auth/refresh').set('Cookie', c);
+  expect(res.status).toBe(200);
+  expect(refreshCookie(res.headers['set-cookie'])).toMatch(/Max-Age=\d+/i);
+});
+
 test('refresh without a cookie returns 401', async () => {
   const res = await agent().post('/api/auth/refresh');
   expect(res.status).toBe(401);

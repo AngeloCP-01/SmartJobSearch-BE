@@ -1,35 +1,38 @@
 const authService = require('./auth.service');
+const { REMEMBER_TTL_DAYS } = require('../../shared/utils/jwt');
 
 const REFRESH_COOKIE = 'refreshToken';
 
-const cookieOptions = () => ({
+// Persistent ("remember me") → a Max-Age cookie that survives browser restarts.
+// Otherwise a session cookie (no Max-Age) that's cleared when the browser closes.
+const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
   path: '/api/auth',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
+  ...(rememberMe ? { maxAge: REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 } : {}),
 });
 
 async function register(req, res, next) {
   try {
-    const { user, accessToken, refreshToken } = await authService.register(req.body);
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
+    const { user, accessToken, refreshToken, rememberMe } = await authService.register(req.body);
+    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(rememberMe));
     res.status(201).json({ user, accessToken });
   } catch (e) { next(e); }
 }
 
 async function login(req, res, next) {
   try {
-    const { user, accessToken, refreshToken } = await authService.login(req.body);
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
+    const { user, accessToken, refreshToken, rememberMe } = await authService.login(req.body);
+    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(rememberMe));
     res.json({ user, accessToken });
   } catch (e) { next(e); }
 }
 
 async function refresh(req, res, next) {
   try {
-    const { accessToken, refreshToken } = await authService.refresh(req.cookies[REFRESH_COOKIE]);
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
+    const { accessToken, refreshToken, rememberMe } = await authService.refresh(req.cookies[REFRESH_COOKIE]);
+    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(rememberMe));
     res.json({ accessToken });
   } catch (e) { next(e); }
 }
