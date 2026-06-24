@@ -28,11 +28,18 @@ async function getById(userId, id) {
           },
         },
       },
+      documentLinks: {
+        include: {
+          document: {
+            select: { id: true, name: true, type: true, originalFilename: true, mimeType: true, sizeBytes: true },
+          },
+        },
+      },
     },
   });
   if (!app) throw new NotFoundError('Application not found');
-  const { contactLinks, ...rest } = app;
-  return { ...rest, contacts: contactLinks.map((l) => l.contact) };
+  const { contactLinks, documentLinks, ...rest } = app;
+  return { ...rest, contacts: contactLinks.map((l) => l.contact), documents: documentLinks.map((l) => l.document) };
 }
 
 async function create(userId, data) {

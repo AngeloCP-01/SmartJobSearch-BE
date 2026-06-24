@@ -1,5 +1,6 @@
 const service = require('./applications.service');
 const contactsService = require('../contacts/contacts.service');
+const documentsService = require('../documents/documents.service');
 
 async function list(req, res, next) {
   try { res.json(await service.list(req.userId, { status: req.query.status })); }
@@ -36,5 +37,19 @@ async function unlinkContact(req, res, next) {
     res.status(204).end();
   } catch (e) { next(e); }
 }
+async function linkDocument(req, res, next) {
+  try {
+    res.status(201).json(await documentsService.linkApplication(req.userId, req.params.id, req.body.documentId));
+  } catch (e) { next(e); }
+}
+async function unlinkDocument(req, res, next) {
+  try {
+    await documentsService.unlinkApplication(req.userId, req.params.id, req.params.documentId);
+    res.status(204).end();
+  } catch (e) { next(e); }
+}
 
-module.exports = { list, getById, create, update, updateStatus, remove, linkContact, unlinkContact };
+module.exports = {
+  list, getById, create, update, updateStatus, remove,
+  linkContact, unlinkContact, linkDocument, unlinkDocument,
+};

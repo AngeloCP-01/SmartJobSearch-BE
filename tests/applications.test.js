@@ -123,3 +123,62 @@ test('a user cannot touch another user\'s application (404)', async () => {
   const res = await agent().get(`/api/applications/${created.body.id}`).set(auth(b.token));
   expect(res.status).toBe(404);
 });
+
+const DOC_PDF = Buffer.from('%PDF-1.4 link test');
+const uploadDoc = (token, name = 'Resume') =>
+  agent().post('/api/documents').set(auth(token)).field('name', name).field('type', 'Resume')
+    .attach('file', DOC_PDF, { filename: 'r.pdf', contentType: 'application/pdf' });
+
+test('links a document to an application; it appears on application detail', async () => {
+  const { token } = await registerAndLogin();
+  const appId = (await agent().post('/api/applications').set(auth(token)).send({ position: 'Eng' })).body.id;
+  const docId = (await uploadDoc(token, 'My Resume')).body.id;
+
+  const link = await agent().post(`/api/applications/${appId}/documents`).set(auth(token)).send({ documentId: docId });
+  expect(link.status).toBe(201);
+
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.documents).toHaveLength(1);
+  expect(detail.body.documents[0]).toMatchObject({ id: docId, name: 'My Resume', type: 'Resume' });
+});
+
+test('linking the same document twice returns 409', async () => {
+  const { token } = await registerAndLogin();
+  const appId = (await agent().post('/api/applications').set(auth(token)).send({ position: 'Eng' })).body.id;
+  const docId = (await uploadDoc(token)).body.id;
+  await agent().post(`/api/applications/${appId}/documents`).set(auth(token)).send({ documentId: docId });
+  const dup = await agent().post(`/api/applications/${appId}/documents`).set(auth(token)).send({ documentId: docId });
+  expect(dup.status).toBe(409);
+});
+
+test('unlinking a document is idempotent (204)', async () => {
+  const { token } = await registerAndLogin();
+  const appId = (await agent().post('/api/applications').set(auth(token)).send({ position: 'Eng' })).body.id;
+  const docId = (await uploadDoc(token)).body.id;
+  await agent().post(`/api/applications/${appId}/documents`).set(auth(token)).send({ documentId: docId });
+  const unlink = await agent().delete(`/api/applications/${appId}/documents/${docId}`).set(auth(token));
+  expect(unlink.status).toBe(204);
+  const again = await agent().delete(`/api/applications/${appId}/documents/${docId}`).set(auth(token));
+  expect(again.status).toBe(204);
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.documents).toEqual([]);
+});
+
+test('cannot link another user\'s document (404)', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const appId = (await agent().post('/api/applications').set(auth(b.token)).send({ position: 'Eng' })).body.id;
+  const docId = (await uploadDoc(a.token)).body.id;
+  const res = await agent().post(`/api/applications/${appId}/documents`).set(auth(b.token)).send({ documentId: docId });
+  expect(res.status).toBe(404);
+});
+
+test('deleting a document removes its application links (cascade)', async () => {
+  const { token } = await registerAndLogin();
+  const appId = (await agent().post('/api/applications').set(auth(token)).send({ position: 'Eng' })).body.id;
+  const docId = (await uploadDoc(token)).body.id;
+  await agent().post(`/api/applications/${appId}/documents`).set(auth(token)).send({ documentId: docId });
+  await agent().delete(`/api/documents/${docId}`).set(auth(token));
+  const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
+  expect(detail.body.documents).toEqual([]);
+});

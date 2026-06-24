@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
-const { NotFoundError } = require('../../shared/utils/errors');
+const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -57,4 +57,30 @@ async function remove(userId, id) {
   await storage.remove(doc.storageKey);
 }
 
-module.exports = { create, list, publicSelect, assertDocument, getForDownload, update, remove };
+async function assertApplication(userId, applicationId) {
+  const app = await prisma.application.findFirst({ where: { id: applicationId, userId } });
+  if (!app) throw new NotFoundError('Application not found');
+  return app;
+}
+
+async function linkApplication(userId, applicationId, documentId) {
+  await assertApplication(userId, applicationId);
+  await assertDocument(userId, documentId);
+  const existing = await prisma.applicationDocument.findUnique({
+    where: { applicationId_documentId: { applicationId, documentId } },
+  });
+  if (existing) throw new ConflictError('Document already linked to this application');
+  await prisma.applicationDocument.create({ data: { applicationId, documentId } });
+  return prisma.document.findFirst({ where: { id: documentId }, select: publicSelect });
+}
+
+async function unlinkApplication(userId, applicationId, documentId) {
+  await assertApplication(userId, applicationId);
+  await assertDocument(userId, documentId);
+  await prisma.applicationDocument.deleteMany({ where: { applicationId, documentId } });
+}
+
+module.exports = {
+  create, list, publicSelect, assertDocument, getForDownload, update, remove,
+  linkApplication, unlinkApplication,
+};
