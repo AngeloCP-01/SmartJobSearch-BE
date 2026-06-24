@@ -23,6 +23,17 @@ test('recognizes multi-word skills and counts occurrences', () => {
   expect(ml.resumeCount).toBeGreaterThanOrEqual(1);
 });
 
+test('multi-word skills do not leak their component tokens as phantom skills', () => {
+  const r = matchJd('I cook.', 'We want machine learning and amazon web services.');
+  const terms = r.matched.concat(r.missing).map((e) => e.term);
+  expect(terms).toContain('machine learning');
+  // component fragments must not appear as standalone keywords
+  expect(terms).not.toContain('machine');
+  expect(terms).not.toContain('learning');
+  expect(terms).not.toContain('web');
+  expect(terms).not.toContain('services');
+});
+
 test('hard skills weigh more than soft skills, and the score is 0..100', () => {
   const r = matchJd(RESUME, JD);
   const hard = r.matched.concat(r.missing).find((e) => e.term === 'kubernetes');

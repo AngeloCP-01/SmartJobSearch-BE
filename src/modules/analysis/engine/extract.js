@@ -9,7 +9,9 @@ async function extractText(buffer, mimeType) {
   try {
     let text = '';
     if (mimeType === PDF) {
-      text = (await new PDFParse({ data: buffer }).getText()).text || '';
+      const parser = new PDFParse({ data: buffer });
+      try { text = (await parser.getText()).text || ''; }
+      finally { await parser.destroy().catch(() => {}); } // release the pdfjs worker/loading task
     } else if (mimeType === DOCX) {
       text = (await mammoth.extractRawText({ buffer })).value || '';
     } else {

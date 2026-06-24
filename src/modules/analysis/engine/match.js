@@ -36,11 +36,19 @@ function extractJdKeywords(jd, dict, index) {
     if (c > 0) found.set(s.canonical, { term: s.canonical, type: s.type, jdCount: c });
   }
 
+  // Component tokens of multi-word dictionary phrases (e.g. "machine"/"learning"
+  // from "machine learning") must NOT re-enter as standalone phantom skills.
+  const phraseTokens = new Set();
+  for (const key of index.keys()) {
+    const parts = tokenize(key);
+    if (parts.length > 1) for (const p of parts) phraseTokens.add(p);
+  }
+
   // 2) salient single tokens not already covered (frequency-based), treated as hard skills
   const freq = new Map();
   for (const tok of tokenize(jd)) {
     if (tok.length < 3 || STOPWORDS.has(tok)) continue;
-    if (index.has(tok)) continue; // already captured via dictionary
+    if (index.has(tok) || phraseTokens.has(tok)) continue; // captured via dictionary / a phrase fragment
     freq.set(tok, (freq.get(tok) || 0) + 1);
   }
   for (const [tok, c] of [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
