@@ -22,7 +22,9 @@ const JSON_SCHEMA = {
 
 const SYSTEM = 'You extract skills to match a résumé against a job description. Use ONLY skills explicitly stated in the job description. Mark a skill present:true only if it clearly appears in the résumé, otherwise present:false. Never invent skills that are not in the job description. Keep suggestions concrete and honest — do not encourage keyword stuffing. Respond with JSON only.';
 
-const DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+// A current free model that honors structured outputs (verified 2026-06).
+// Override via OPENROUTER_MODEL. See openrouter.ai/models?supported_parameters=structured_outputs
+const DEFAULT_MODEL = 'nvidia/nemotron-nano-9b-v2:free';
 const TIMEOUT_MS = 15000;
 
 async function complete(resumeText, jobDescription) {

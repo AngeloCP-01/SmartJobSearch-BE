@@ -13,6 +13,8 @@ const { prisma, resetDb } = require('./helpers/db');
 const { registerAndLogin } = require('./helpers/auth');
 
 beforeEach(resetDb);
+// Guarantee no OPENROUTER_API_KEY leaks between tests even if one fails mid-way.
+afterEach(() => { delete process.env.OPENROUTER_API_KEY; });
 afterAll(async () => { await prisma.$disconnect(); fs.rmSync(tmpDir, { recursive: true, force: true }); });
 
 const auth = (t) => ({ Authorization: `Bearer ${t}` });
