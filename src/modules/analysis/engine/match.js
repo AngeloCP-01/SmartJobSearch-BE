@@ -1,16 +1,4 @@
 const defaultDict = require('./skills.json');
-const { STOPWORDS, tokenize, stem } = require('./text');
-
-// Build a phrase->{canonical,type} index from the dictionary (canonical + synonyms).
-function buildIndex(dict) {
-  const index = new Map();
-  for (const s of dict) {
-    for (const phrase of [s.canonical, ...s.synonyms]) {
-      index.set(phrase.toLowerCase(), { canonical: s.canonical, type: s.type });
-    }
-  }
-  return index;
-}
 
 // Count non-overlapping occurrences of a (possibly multi-word) phrase in lowercased text.
 function countPhrase(text, phrase) {
@@ -26,35 +14,17 @@ function countSkill(text, dict, canonical) {
   return phrases.reduce((n, p) => n + countPhrase(text, p.toLowerCase()), 0);
 }
 
-function extractJdKeywords(jd, dict, index) {
+// Only real skills from the curated dictionary are scored — never arbitrary frequent
+// JD tokens, which are mostly generic filler ("frameworks", "implement", "what", …) and
+// produce junk keywords + nonsensical "add 'what'" suggestions.
+function extractJdKeywords(jd, dict) {
   const text = ` ${jd.toLowerCase()} `;
-  const found = new Map(); // canonical -> {term,type,jdCount}
-
-  // 1) dictionary skills (handles multi-word + synonyms)
+  const found = [];
   for (const s of dict) {
     const c = countSkill(text, dict, s.canonical);
-    if (c > 0) found.set(s.canonical, { term: s.canonical, type: s.type, jdCount: c });
+    if (c > 0) found.push({ term: s.canonical, type: s.type, jdCount: c });
   }
-
-  // Component tokens of multi-word dictionary phrases (e.g. "machine"/"learning"
-  // from "machine learning") must NOT re-enter as standalone phantom skills.
-  const phraseTokens = new Set();
-  for (const key of index.keys()) {
-    const parts = tokenize(key);
-    if (parts.length > 1) for (const p of parts) phraseTokens.add(p);
-  }
-
-  // 2) salient single tokens not already covered (frequency-based), treated as hard skills
-  const freq = new Map();
-  for (const tok of tokenize(jd)) {
-    if (tok.length < 3 || STOPWORDS.has(tok)) continue;
-    if (index.has(tok) || phraseTokens.has(tok)) continue; // captured via dictionary / a phrase fragment
-    freq.set(tok, (freq.get(tok) || 0) + 1);
-  }
-  for (const [tok, c] of [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
-    if (!found.has(tok)) found.set(tok, { term: tok, type: 'hard', jdCount: c });
-  }
-  return [...found.values()];
+  return found;
 }
 
 function weightOf(kw) {
@@ -64,9 +34,8 @@ function weightOf(kw) {
 
 function matchJd(resumeText, jobDescription, dict = defaultDict) {
   if (!jobDescription || !jobDescription.trim()) return null;
-  const index = buildIndex(dict);
   const resume = ` ${String(resumeText).toLowerCase()} `;
-  const keywords = extractJdKeywords(jobDescription, dict, index);
+  const keywords = extractJdKeywords(jobDescription, dict);
 
   const matched = [];
   const missing = [];
@@ -76,10 +45,7 @@ function matchJd(resumeText, jobDescription, dict = defaultDict) {
   for (const kw of keywords) {
     const weight = weightOf(kw);
     total += weight;
-    // resume count: dictionary skill uses synonym-aware count; bare token tries exact + stem
-    const resumeCount = index.has(kw.term)
-      ? countSkill(resume, dict, kw.term)
-      : countPhrase(resume, kw.term) || countPhrase(resume, stem(kw.term));
+    const resumeCount = countSkill(resume, dict, kw.term);
     const entry = { term: kw.term, type: kw.type, jdCount: kw.jdCount, resumeCount, weight };
     if (resumeCount > 0) { matched.push(entry); got += weight; } else { missing.push(entry); }
   }
@@ -90,4 +56,4 @@ function matchJd(resumeText, jobDescription, dict = defaultDict) {
   return { matchScore, matched, missing };
 }
 
-module.exports = { matchJd, extractJdKeywords, buildIndex };
+module.exports = { matchJd, extractJdKeywords };

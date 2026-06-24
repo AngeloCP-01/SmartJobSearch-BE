@@ -23,6 +23,18 @@ test('recognizes multi-word skills and counts occurrences', () => {
   expect(ml.resumeCount).toBeGreaterThanOrEqual(1);
 });
 
+test('does not treat generic JD filler words as skills (dictionary-only)', () => {
+  const jd = 'We are seeking someone to implement frameworks and best practices for the greenfield development of cloud-based platforms delivered to enterprise clients. What does the role involve? Java and MongoDB experience required.';
+  const r = matchJd('Java developer with MongoDB and REST API experience.', jd);
+  const terms = r.matched.concat(r.missing).map((e) => e.term);
+  // real skills are still found
+  expect(terms).toEqual(expect.arrayContaining(['java', 'mongodb']));
+  // generic filler must NOT appear as keywords/suggestions
+  for (const junk of ['frameworks', 'implement', 'practices', 'technologies', 'what', 'role', 'involves', 'greenfield', 'development', 'building', 'systems', 'tools', 'architecture', 'performance']) {
+    expect(terms).not.toContain(junk);
+  }
+});
+
 test('multi-word skills do not leak their component tokens as phantom skills', () => {
   const r = matchJd('I cook.', 'We want machine learning and amazon web services.');
   const terms = r.matched.concat(r.missing).map((e) => e.term);
