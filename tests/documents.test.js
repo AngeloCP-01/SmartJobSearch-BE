@@ -62,3 +62,46 @@ test('rejects a missing file (400)', async () => {
   const res = await agent().post('/api/documents').set(auth(token)).field('name', 'X').field('type', 'Resume');
   expect(res.status).toBe(400);
 });
+
+test('downloads the stored bytes with the right content-type', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token, { filename: 'cv.pdf' });
+  const res = await agent().get(`/api/documents/${created.body.id}/file`).set(auth(token)).buffer(true).parse((r, cb) => {
+    const chunks = [];
+    r.on('data', (c) => chunks.push(Buffer.from(c, 'binary')));
+    r.on('end', () => cb(null, Buffer.concat(chunks)));
+  });
+  expect(res.status).toBe(200);
+  expect(res.headers['content-type']).toContain('application/pdf');
+  expect(Buffer.from(res.body).equals(PDF)).toBe(true);
+});
+
+test('updates document metadata', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token, { name: 'Old', type: 'Resume' });
+  const patched = await agent().patch(`/api/documents/${created.body.id}`).set(auth(token))
+    .send({ name: 'New Name', type: 'CoverLetter', notes: 'updated' });
+  expect(patched.status).toBe(200);
+  expect(patched.body).toMatchObject({ name: 'New Name', type: 'CoverLetter', notes: 'updated' });
+});
+
+test('deletes a document and removes its file', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token);
+  const del = await agent().delete(`/api/documents/${created.body.id}`).set(auth(token));
+  expect(del.status).toBe(204);
+  const list = await agent().get('/api/documents').set(auth(token));
+  expect(list.body).toHaveLength(0);
+  const dl = await agent().get(`/api/documents/${created.body.id}/file`).set(auth(token));
+  expect(dl.status).toBe(404);
+});
+
+test('a user cannot read, download, update, or delete another user\'s document (404)', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const created = await upload(a.token);
+  const id = created.body.id;
+  expect((await agent().get(`/api/documents/${id}/file`).set(auth(b.token))).status).toBe(404);
+  expect((await agent().patch(`/api/documents/${id}`).set(auth(b.token)).send({ name: 'X' })).status).toBe(404);
+  expect((await agent().delete(`/api/documents/${id}`).set(auth(b.token))).status).toBe(404);
+});

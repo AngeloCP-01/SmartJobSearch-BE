@@ -41,4 +41,20 @@ async function assertDocument(userId, id) {
   return doc;
 }
 
-module.exports = { create, list, publicSelect, assertDocument };
+async function getForDownload(userId, id) {
+  const doc = await assertDocument(userId, id);
+  return { storageKey: doc.storageKey, mimeType: doc.mimeType, originalFilename: doc.originalFilename };
+}
+
+async function update(userId, id, data) {
+  await assertDocument(userId, id);
+  return prisma.document.update({ where: { id }, data, select: publicSelect });
+}
+
+async function remove(userId, id) {
+  const doc = await assertDocument(userId, id);
+  await prisma.document.delete({ where: { id } });
+  await storage.remove(doc.storageKey);
+}
+
+module.exports = { create, list, publicSelect, assertDocument, getForDownload, update, remove };
