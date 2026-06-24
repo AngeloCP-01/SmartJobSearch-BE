@@ -56,4 +56,4 @@ function matchJd(resumeText, jobDescription, dict = defaultDict) {
   return { matchScore, matched, missing };
 }
 
-module.exports = { matchJd, extractJdKeywords };
+module.exports = { matchJd, extractJdKeywords, weightOf };
