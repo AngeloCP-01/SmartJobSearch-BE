@@ -7,6 +7,7 @@ const contactsRoutes = require('../modules/contacts/contacts.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const analyticsRoutes = require('../modules/analytics/analytics.routes');
 const remindersRoutes = require('../modules/reminders/reminders.routes');
+const documentsRoutes = require('../modules/documents/documents.routes');
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/interviews', interviewsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/reminders', remindersRoutes);
+router.use('/documents', documentsRoutes);
 
 module.exports = router;
