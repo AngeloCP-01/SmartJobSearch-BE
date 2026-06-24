@@ -16,5 +16,9 @@ async function remove(req, res, next) {
   try { await service.remove(req.userId, req.params.id); res.status(204).end(); }
   catch (e) { next(e); }
 }
+async function config(req, res, next) {
+  try { res.json(await service.config()); }
+  catch (e) { next(e); }
+}
 
-module.exports = { run, list, getById, remove };
+module.exports = { run, list, getById, remove, config };

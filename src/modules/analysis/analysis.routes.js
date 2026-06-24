@@ -9,6 +9,7 @@ router.use(requireAuth);
 
 router.get('/', ctrl.list);
 router.post('/', validate(runAnalysisSchema), ctrl.run);
+router.get('/config', ctrl.config);
 router.get('/:id', ctrl.getById);
 router.delete('/:id', ctrl.remove);
 

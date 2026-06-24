@@ -3,6 +3,7 @@ const { z } = require('zod');
 const runAnalysisSchema = z.object({
   applicationId: z.string().uuid(),
   documentId: z.string().uuid(),
+  useAi: z.boolean().optional(),
 });
 
 const entrySchema = z.object({
@@ -14,6 +15,7 @@ const analysisReportSchema = z.object({
   meta: z.object({
     documentName: z.string(), position: z.string().nullable(),
     jdPresent: z.boolean(), extractionOk: z.boolean(), wordCount: z.number().int(),
+    aiUsed: z.boolean(), aiModel: z.string().nullable(),
   }),
   atsSubScores: z.object({
     parseability: z.number(), sections: z.number(), contactInfo: z.number(),
@@ -23,7 +25,7 @@ const analysisReportSchema = z.object({
   missing: z.array(entrySchema),
   sectionFindings: z.array(z.object({ section: z.string(), present: z.boolean() })),
   suggestions: z.array(z.object({
-    text: z.string(), severity: z.enum(['high', 'medium', 'low']), source: z.literal('rule'),
+    text: z.string(), severity: z.enum(['high', 'medium', 'low']), source: z.enum(['rule', 'ai']),
   })),
 });
 
