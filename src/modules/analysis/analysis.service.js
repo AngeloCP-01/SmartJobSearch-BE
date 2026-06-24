@@ -7,6 +7,7 @@ const { auditAts } = require('./engine/ats');
 const { matchJd } = require('./engine/match');
 const { buildSuggestions } = require('./engine/suggestions');
 const { tokenize } = require('./engine/text');
+const { aiMatch } = require('./engine/openrouter');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
@@ -20,7 +21,7 @@ function readBuffer(key) {
   });
 }
 
-async function run(userId, { applicationId, documentId }) {
+async function run(userId, { applicationId, documentId, useAi }) {
   const application = await prisma.application.findFirst({ where: { id: applicationId, userId } });
   if (!application) throw new NotFoundError('Application not found');
   const document = await prisma.document.findFirst({ where: { id: documentId, userId } });
@@ -31,18 +32,50 @@ async function run(userId, { applicationId, documentId }) {
 
   const ats = auditAts(text, { mimeType: document.mimeType });
   const jd = application.jobDescription || '';
-  const match = ok ? matchJd(text, jd) : null; // no point matching unreadable text
+
+  let match = null;
+  let aiUsed = false;
+  let aiModel = null;
+  let aiSuggestions = null;
+
+  if (ok && jd.trim()) {
+    if (useAi && process.env.OPENROUTER_API_KEY) {
+      try {
+        const r = await aiMatch(text, jd);
+        match = { matchScore: r.matchScore, matched: r.matched, missing: r.missing };
+        aiSuggestions = r.suggestions;
+        aiUsed = true;
+        aiModel = r.model;
+      } catch {
+        match = matchJd(text, jd); // graceful fallback on any AI failure
+      }
+    } else {
+      match = matchJd(text, jd);
+    }
+  }
+
   const meta = {
     documentName: document.name,
     position: application.position ?? null,
     jdPresent: Boolean(jd.trim()),
     extractionOk: ok,
     wordCount: tokenize(text).length,
+    aiUsed,
+    aiModel,
   };
-  const suggestions = buildSuggestions({
-    subScores: ats.subScores, sectionFindings: ats.sectionFindings,
-    missing: match ? match.missing : [], meta,
-  });
+
+  let suggestions;
+  if (aiUsed) {
+    // structural (rule) suggestions always run; skill-gap come from the LLM
+    const structural = buildSuggestions({ subScores: ats.subScores, sectionFindings: ats.sectionFindings, missing: [], meta });
+    const rank = { high: 0, medium: 1, low: 2 };
+    suggestions = [...structural, ...aiSuggestions].sort((a, b) => rank[a.severity] - rank[b.severity]);
+  } else {
+    suggestions = buildSuggestions({
+      subScores: ats.subScores, sectionFindings: ats.sectionFindings,
+      missing: match ? match.missing : [], meta,
+    });
+  }
 
   const report = analysisReportSchema.parse({
     meta,
@@ -88,4 +121,8 @@ async function remove(userId, id) {
   await prisma.resumeAnalysis.delete({ where: { id } });
 }
 
-module.exports = { run, list, getById, remove };
+function config() {
+  return { aiAvailable: Boolean(process.env.OPENROUTER_API_KEY) };
+}
+
+module.exports = { run, list, getById, remove, config };

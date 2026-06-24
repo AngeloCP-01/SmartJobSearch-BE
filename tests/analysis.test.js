@@ -5,6 +5,9 @@ const path = require('path');
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'analysis-it-'));
 process.env.UPLOAD_DIR = tmpDir;
 
+jest.mock('../src/modules/analysis/engine/openrouter');
+const { aiMatch } = require('../src/modules/analysis/engine/openrouter');
+
 const { agent } = require('./helpers/testApp');
 const { prisma, resetDb } = require('./helpers/db');
 const { registerAndLogin } = require('./helpers/auth');
@@ -85,4 +88,61 @@ test('cross-user isolation (404)', async () => {
   const run = await agent().post('/api/analysis').set(auth(a.token)).send({ applicationId: appId, documentId: docId });
   expect((await agent().get(`/api/analysis/${run.body.id}`).set(auth(b.token))).status).toBe(404);
   expect((await agent().delete(`/api/analysis/${run.body.id}`).set(auth(b.token))).status).toBe(404);
+});
+
+const AI_RESULT = {
+  matchScore: 80,
+  matched: [{ term: 'rust', type: 'hard', jdCount: 1, resumeCount: 1, weight: 4 }],
+  missing: [{ term: 'elixir', type: 'hard', jdCount: 1, resumeCount: 0, weight: 4 }],
+  suggestions: [{ text: 'Add Elixir if you have it.', severity: 'high', source: 'ai' }],
+  model: 'test/model:free',
+};
+
+test('useAi + key + AI success → aiUsed true with AI match + ai suggestions', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  aiMatch.mockResolvedValue(AI_RESULT);
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Rust and Elixir.');
+  const docId = await uploadResume(token);
+  const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
+  expect(run.status).toBe(201);
+  expect(run.body.report.meta.aiUsed).toBe(true);
+  expect(run.body.report.meta.aiModel).toBe('test/model:free');
+  expect(run.body.report.matched.map((e) => e.term)).toContain('rust');
+  expect(run.body.report.suggestions.some((s) => s.source === 'ai')).toBe(true);
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('useAi + key + AI throws → falls back to deterministic (never 500)', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  aiMatch.mockRejectedValue(new Error('rate limited'));
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+  const docId = await uploadResume(token);
+  const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
+  expect(run.status).toBe(201);
+  expect(run.body.report.meta.aiUsed).toBe(false);
+  expect(typeof run.body.matchScore).toBe('number');
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('useAi + NO key → deterministic, AI never attempted', async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  aiMatch.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'Node.js role.');
+  const docId = await uploadResume(token);
+  const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
+  expect(run.status).toBe(201);
+  expect(run.body.report.meta.aiUsed).toBe(false);
+  expect(aiMatch).not.toHaveBeenCalled();
+});
+
+test('GET /api/analysis/config reflects the API key presence', async () => {
+  const { token } = await registerAndLogin();
+  process.env.OPENROUTER_API_KEY = 'k';
+  expect((await agent().get('/api/analysis/config').set(auth(token))).body).toEqual({ aiAvailable: true });
+  delete process.env.OPENROUTER_API_KEY;
+  expect((await agent().get('/api/analysis/config').set(auth(token))).body).toEqual({ aiAvailable: false });
+  expect((await agent().get('/api/analysis/config')).status).toBe(401);
 });
