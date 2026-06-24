@@ -97,3 +97,42 @@ test('recording a Passed/Failed result logs InterviewResultRecorded; a notes edi
   expect(ev).toBeTruthy();
   expect(ev.metadata).toMatchObject({ position: 'Eng', type: 'HR', result: 'Passed' });
 });
+
+test('linking a document logs DocumentLinked, and a contact logs ContactLinked', async () => {
+  const { token } = await registerAndLogin();
+  const app = await makeApp(token, 'Eng');
+  const docId = (await agent().post('/api/documents').set(auth(token))
+    .field('name', 'Resume v2').field('type', 'Resume')
+    .attach('file', Buffer.from('%PDF-1.4'), { filename: 'r.pdf', contentType: 'application/pdf' })).body.id;
+  const contactId = (await agent().post('/api/contacts').set(auth(token)).send({ name: 'Jane Recruiter' })).body.id;
+
+  await agent().post(`/api/applications/${app.id}/documents`).set(auth(token)).send({ documentId: docId });
+  await agent().post(`/api/applications/${app.id}/contacts`).set(auth(token)).send({ contactId });
+
+  const res = await agent().get(`/api/activity?applicationId=${app.id}`).set(auth(token));
+  const doc = res.body.items.find((i) => i.action === 'DocumentLinked');
+  const contact = res.body.items.find((i) => i.action === 'ContactLinked');
+  expect(doc.metadata).toMatchObject({ position: 'Eng', name: 'Resume v2' });
+  expect(contact.metadata).toMatchObject({ position: 'Eng', name: 'Jane Recruiter' });
+});
+
+test('filters by applicationId and paginates with limit/before', async () => {
+  const { token } = await registerAndLogin();
+  const app = await makeApp(token, 'Eng');
+  for (const status of ['Applied', 'HR_Screening', 'Technical_Interview']) {
+    await agent().patch(`/api/applications/${app.id}/status`).set(auth(token)).send({ status });
+  }
+  const other = await makeApp(token, 'Other');
+
+  const onlyThis = await agent().get(`/api/activity?applicationId=${app.id}`).set(auth(token));
+  expect(onlyThis.body.items.every((i) => i.applicationId === app.id)).toBe(true);
+  expect(onlyThis.body.items.some((i) => i.metadata.position === 'Other')).toBe(false);
+
+  const page1 = await agent().get('/api/activity?limit=2').set(auth(token));
+  expect(page1.body.items).toHaveLength(2);
+  expect(page1.body.nextCursor).not.toBeNull();
+  const page2 = await agent().get(`/api/activity?limit=2&before=${encodeURIComponent(page1.body.nextCursor)}`).set(auth(token));
+  expect(page2.body.items.length).toBeGreaterThan(0);
+  expect(new Date(page2.body.items[0].createdAt) <= new Date(page1.body.nextCursor)).toBe(true);
+  void other;
+});
