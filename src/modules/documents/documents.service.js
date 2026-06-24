@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
 const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
+const activity = require('../activity/activity.service');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -70,13 +71,14 @@ async function assertApplication(userId, applicationId) {
 }
 
 async function linkApplication(userId, applicationId, documentId) {
-  await assertApplication(userId, applicationId);
-  await assertDocument(userId, documentId);
+  const app = await assertApplication(userId, applicationId);
+  const doc = await assertDocument(userId, documentId);
   const existing = await prisma.applicationDocument.findUnique({
     where: { applicationId_documentId: { applicationId, documentId } },
   });
   if (existing) throw new ConflictError('Document already linked to this application');
   await prisma.applicationDocument.create({ data: { applicationId, documentId } });
+  await activity.record(userId, 'DocumentLinked', { applicationId, metadata: { position: app.position, name: doc.name } });
   return prisma.document.findFirst({ where: { id: documentId }, select: publicSelect });
 }
 

@@ -1,5 +1,6 @@
 const prisma = require('../../shared/database/prisma');
 const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
+const activity = require('../activity/activity.service');
 
 const includeCompany = { company: { select: { id: true, name: true } } };
 
@@ -74,13 +75,14 @@ async function remove(userId, id) {
 }
 
 async function linkApplication(userId, applicationId, contactId) {
-  await assertApplication(userId, applicationId);
-  await assertContact(userId, contactId);
+  const app = await assertApplication(userId, applicationId);
+  const contact = await assertContact(userId, contactId);
   const existing = await prisma.applicationContact.findUnique({
     where: { applicationId_contactId: { applicationId, contactId } },
   });
   if (existing) throw new ConflictError('Contact already linked to this application');
   await prisma.applicationContact.create({ data: { applicationId, contactId } });
+  await activity.record(userId, 'ContactLinked', { applicationId, metadata: { position: app.position, name: contact.name } });
   return prisma.contact.findFirst({ where: { id: contactId }, include: includeCompany });
 }
 

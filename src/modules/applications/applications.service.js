@@ -1,5 +1,6 @@
 const prisma = require('../../shared/database/prisma');
 const { NotFoundError } = require('../../shared/utils/errors');
+const activity = require('../activity/activity.service');
 
 const includeCompany = { company: { select: { id: true, name: true } } };
 
@@ -44,7 +45,9 @@ async function getById(userId, id) {
 
 async function create(userId, data) {
   await assertCompany(userId, data.companyId);
-  return prisma.application.create({ data: { ...data, userId }, include: includeCompany });
+  const app = await prisma.application.create({ data: { ...data, userId }, include: includeCompany });
+  await activity.record(userId, 'ApplicationCreated', { applicationId: app.id, metadata: { position: app.position } });
+  return app;
 }
 
 async function update(userId, id, data) {
@@ -54,13 +57,21 @@ async function update(userId, id, data) {
 }
 
 async function updateStatus(userId, id, status) {
-  await getById(userId, id);
-  return prisma.application.update({ where: { id }, data: { status }, include: includeCompany });
+  const existing = await getById(userId, id);
+  const app = await prisma.application.update({ where: { id }, data: { status }, include: includeCompany });
+  if (existing.status !== status) {
+    await activity.record(userId, 'ApplicationStatusChanged', {
+      applicationId: id,
+      metadata: { position: app.position, from: existing.status, to: status },
+    });
+  }
+  return app;
 }
 
 async function remove(userId, id) {
-  await getById(userId, id);
+  const existing = await getById(userId, id);
   await prisma.application.delete({ where: { id } });
+  await activity.record(userId, 'ApplicationDeleted', { applicationId: null, metadata: { position: existing.position } });
 }
 
 module.exports = { list, getById, create, update, updateStatus, remove };
