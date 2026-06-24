@@ -1,5 +1,6 @@
 const prisma = require('../../shared/database/prisma');
 const { NotFoundError } = require('../../shared/utils/errors');
+const activity = require('../activity/activity.service');
 
 const includeCompany = { company: { select: { id: true, name: true } } };
 
@@ -44,7 +45,9 @@ async function getById(userId, id) {
 
 async function create(userId, data) {
   await assertCompany(userId, data.companyId);
-  return prisma.application.create({ data: { ...data, userId }, include: includeCompany });
+  const app = await prisma.application.create({ data: { ...data, userId }, include: includeCompany });
+  await activity.record(userId, 'ApplicationCreated', { applicationId: app.id, metadata: { position: app.position } });
+  return app;
 }
 
 async function update(userId, id, data) {

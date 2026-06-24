@@ -38,6 +38,16 @@ enum DocumentType {
   Other
 }
 
+enum ActivityAction {
+  ApplicationCreated
+  ApplicationStatusChanged
+  ApplicationDeleted
+  InterviewScheduled
+  InterviewResultRecorded
+  DocumentLinked
+  ContactLinked
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -49,6 +59,7 @@ model User {
   interviews    Interview[]
   contacts      Contact[]
   documents     Document[]
+  activityLogs  ActivityLog[]
   refreshTokens RefreshToken[]
 }
 
@@ -100,6 +111,7 @@ model Application {
   interviews      Interview[]
   contactLinks    ApplicationContact[]
   documentLinks   ApplicationDocument[]
+  activityLogs    ActivityLog[]
 
   @@index([userId])
 }
@@ -184,4 +196,18 @@ model ApplicationDocument {
   @@unique([applicationId, documentId])
   @@index([applicationId])
   @@index([documentId])
+}
+
+model ActivityLog {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action        ActivityAction
+  applicationId String?
+  application   Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  metadata      Json           @default("{}")
+  createdAt     DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@index([applicationId])
 }
