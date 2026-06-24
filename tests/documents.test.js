@@ -96,6 +96,15 @@ test('deletes a document and removes its file', async () => {
   expect(dl.status).toBe(404);
 });
 
+test('downloading a document whose file is missing fails cleanly (no crash)', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token);
+  // Simulate the blob being lost while the DB record remains.
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  const res = await agent().get(`/api/documents/${created.body.id}/file`).set(auth(token));
+  expect(res.status).toBeGreaterThanOrEqual(400);
+});
+
 test('a user cannot read, download, update, or delete another user\'s document (404)', async () => {
   const a = await registerAndLogin();
   const b = await registerAndLogin();

@@ -14,13 +14,19 @@ const sanitize = (name) => name.replace(/[^\w.\-]+/g, '_').slice(0, 120);
 async function create(userId, { name, type, notes }, file) {
   const storageKey = `${userId}/${crypto.randomUUID()}-${sanitize(file.originalname)}`;
   await storage.save(file.buffer, storageKey);
-  return prisma.document.create({
-    data: {
-      userId, name, type, notes,
-      originalFilename: file.originalname, mimeType: file.mimetype, sizeBytes: file.size, storageKey,
-    },
-    select: publicSelect,
-  });
+  try {
+    return await prisma.document.create({
+      data: {
+        userId, name, type, notes,
+        originalFilename: file.originalname, mimeType: file.mimetype, sizeBytes: file.size, storageKey,
+      },
+      select: publicSelect,
+    });
+  } catch (e) {
+    // Don't leak an orphaned blob if the DB insert fails after the file was written.
+    await storage.remove(storageKey).catch(() => {});
+    throw e;
+  }
 }
 
 function list(userId, { search, type } = {}) {
