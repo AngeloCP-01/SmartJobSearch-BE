@@ -57,13 +57,21 @@ async function update(userId, id, data) {
 }
 
 async function updateStatus(userId, id, status) {
-  await getById(userId, id);
-  return prisma.application.update({ where: { id }, data: { status }, include: includeCompany });
+  const existing = await getById(userId, id);
+  const app = await prisma.application.update({ where: { id }, data: { status }, include: includeCompany });
+  if (existing.status !== status) {
+    await activity.record(userId, 'ApplicationStatusChanged', {
+      applicationId: id,
+      metadata: { position: app.position, from: existing.status, to: status },
+    });
+  }
+  return app;
 }
 
 async function remove(userId, id) {
-  await getById(userId, id);
+  const existing = await getById(userId, id);
   await prisma.application.delete({ where: { id } });
+  await activity.record(userId, 'ApplicationDeleted', { applicationId: null, metadata: { position: existing.position } });
 }
 
 module.exports = { list, getById, create, update, updateStatus, remove };
