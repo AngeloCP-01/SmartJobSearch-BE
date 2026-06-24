@@ -71,3 +71,29 @@ test('deleting an application logs ApplicationDeleted that survives the delete',
   expect(del.applicationId).toBeNull();
   expect(del.metadata).toMatchObject({ position: 'Doomed' });
 });
+
+test('scheduling an interview logs InterviewScheduled', async () => {
+  const { token } = await registerAndLogin();
+  const app = await makeApp(token, 'Eng');
+  await agent().post('/api/interviews').set(auth(token)).send({ applicationId: app.id, type: 'Technical' });
+  const res = await agent().get(`/api/activity?applicationId=${app.id}`).set(auth(token));
+  const ev = res.body.items.find((i) => i.action === 'InterviewScheduled');
+  expect(ev).toBeTruthy();
+  expect(ev.metadata).toMatchObject({ position: 'Eng', type: 'Technical' });
+});
+
+test('recording a Passed/Failed result logs InterviewResultRecorded; a notes edit does not', async () => {
+  const { token } = await registerAndLogin();
+  const app = await makeApp(token, 'Eng');
+  const iv = (await agent().post('/api/interviews').set(auth(token)).send({ applicationId: app.id, type: 'HR' })).body;
+
+  await agent().patch(`/api/interviews/${iv.id}`).set(auth(token)).send({ notes: 'went ok' });
+  let res = await agent().get(`/api/activity?applicationId=${app.id}`).set(auth(token));
+  expect(res.body.items.filter((i) => i.action === 'InterviewResultRecorded')).toHaveLength(0);
+
+  await agent().patch(`/api/interviews/${iv.id}`).set(auth(token)).send({ result: 'Passed' });
+  res = await agent().get(`/api/activity?applicationId=${app.id}`).set(auth(token));
+  const ev = res.body.items.find((i) => i.action === 'InterviewResultRecorded');
+  expect(ev).toBeTruthy();
+  expect(ev.metadata).toMatchObject({ position: 'Eng', type: 'HR', result: 'Passed' });
+});
