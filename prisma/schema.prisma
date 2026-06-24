@@ -32,6 +32,12 @@ enum InterviewResult {
   Failed
 }
 
+enum DocumentType {
+  Resume
+  CoverLetter
+  Other
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -42,6 +48,7 @@ model User {
   applications  Application[]
   interviews    Interview[]
   contacts      Contact[]
+  documents     Document[]
   refreshTokens RefreshToken[]
 }
 
@@ -92,6 +99,7 @@ model Application {
   updatedAt       DateTime          @updatedAt
   interviews      Interview[]
   contactLinks    ApplicationContact[]
+  documentLinks   ApplicationDocument[]
 
   @@index([userId])
 }
@@ -145,4 +153,35 @@ model ApplicationContact {
   @@unique([applicationId, contactId])
   @@index([applicationId])
   @@index([contactId])
+}
+
+model Document {
+  id               String                @id @default(uuid())
+  userId           String
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  type             DocumentType          @default(Resume)
+  notes            String?
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  applicationLinks ApplicationDocument[]
+
+  @@index([userId])
+}
+
+model ApplicationDocument {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  documentId    String
+  document      Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([applicationId, documentId])
+  @@index([applicationId])
+  @@index([documentId])
 }
