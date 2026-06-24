@@ -128,11 +128,22 @@ test('filters by applicationId and paginates with limit/before', async () => {
   expect(onlyThis.body.items.every((i) => i.applicationId === app.id)).toBe(true);
   expect(onlyThis.body.items.some((i) => i.metadata.position === 'Other')).toBe(false);
 
-  const page1 = await agent().get('/api/activity?limit=2').set(auth(token));
-  expect(page1.body.items).toHaveLength(2);
-  expect(page1.body.nextCursor).not.toBeNull();
-  const page2 = await agent().get(`/api/activity?limit=2&before=${encodeURIComponent(page1.body.nextCursor)}`).set(auth(token));
-  expect(page2.body.items.length).toBeGreaterThan(0);
-  expect(new Date(page2.body.items[0].createdAt) <= new Date(page1.body.nextCursor)).toBe(true);
+  const full = await agent().get('/api/activity?limit=100').set(auth(token));
+  const fullIds = full.body.items.map((i) => i.id);
+  expect(fullIds.length).toBe(5); // 2 ApplicationCreated + 3 ApplicationStatusChanged
+
+  // Walk the whole feed in small pages; must visit every event exactly once
+  // (no rows dropped at millisecond ties, no duplicates).
+  const walked = [];
+  let before;
+  for (let guard = 0; guard < 50; guard += 1) {
+    const url = `/api/activity?limit=2${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+    const page = await agent().get(url).set(auth(token)); // eslint-disable-line no-await-in-loop
+    walked.push(...page.body.items.map((i) => i.id));
+    if (!page.body.nextCursor) break;
+    before = page.body.nextCursor;
+  }
+  expect(walked).toEqual(fullIds);
+  expect(new Set(walked).size).toBe(walked.length);
   void other;
 });
