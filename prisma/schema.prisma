@@ -60,6 +60,7 @@ model User {
   contacts      Contact[]
   documents     Document[]
   activityLogs  ActivityLog[]
+  resumeAnalyses ResumeAnalysis[]
   refreshTokens RefreshToken[]
 }
 
@@ -112,6 +113,7 @@ model Application {
   contactLinks    ApplicationContact[]
   documentLinks   ApplicationDocument[]
   activityLogs    ActivityLog[]
+  resumeAnalyses  ResumeAnalysis[]
 
   @@index([userId])
 }
@@ -181,6 +183,7 @@ model Document {
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   applicationLinks ApplicationDocument[]
+  resumeAnalyses   ResumeAnalysis[]
 
   @@index([userId])
 }
@@ -210,4 +213,20 @@ model ActivityLog {
 
   @@index([userId, createdAt])
   @@index([applicationId])
+}
+
+model ResumeAnalysis {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  documentId    String?
+  document      Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  atsScore      Int
+  matchScore    Int?
+  report        Json         @default("{}")
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
 }

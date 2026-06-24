@@ -1,0 +1,30 @@
+const { z } = require('zod');
+
+const runAnalysisSchema = z.object({
+  applicationId: z.string().uuid(),
+  documentId: z.string().uuid(),
+});
+
+const entrySchema = z.object({
+  term: z.string(), type: z.enum(['hard', 'soft']),
+  jdCount: z.number().int(), resumeCount: z.number().int(), weight: z.number(),
+});
+
+const analysisReportSchema = z.object({
+  meta: z.object({
+    documentName: z.string(), position: z.string().nullable(),
+    jdPresent: z.boolean(), extractionOk: z.boolean(), wordCount: z.number().int(),
+  }),
+  atsSubScores: z.object({
+    parseability: z.number(), sections: z.number(), contactInfo: z.number(),
+    formatting: z.number(), length: z.number(),
+  }),
+  matched: z.array(entrySchema),
+  missing: z.array(entrySchema),
+  sectionFindings: z.array(z.object({ section: z.string(), present: z.boolean() })),
+  suggestions: z.array(z.object({
+    text: z.string(), severity: z.enum(['high', 'medium', 'low']), source: z.literal('rule'),
+  })),
+});
+
+module.exports = { runAnalysisSchema, analysisReportSchema };
