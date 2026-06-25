@@ -1,5 +1,15 @@
 # Deploying SmartJobSearch (free tier)
 
+> **Live since 2026-06-25.**
+> - Frontend: `https://smart-job-search-fe.vercel.app` (Vercel)
+> - API: `https://smartjobsearch-api.onrender.com/api` (Render free) — health: `/api/health`
+> - DB: Neon Postgres · Uploads: Supabase Storage bucket `job_search_documents`
+>
+> **Two gotchas that bit us (don't repeat):**
+> 1. **`CORS_ORIGIN` must be the bare origin** `https://smart-job-search-fe.vercel.app` — scheme + host only. It was first set to `…/login` (with a path); a browser's `Origin` header has no path, so it never matched and every request was CORS-blocked (registration silently failed).
+> 2. **`NODE_ENV` must be lowercase `production`** — the code checks `=== 'production'`. `"PRODUCTION"` leaves the cookie at `SameSite=Lax` (not sent cross-site) and `trust proxy` off.
+
+
 A $0/month full-stack deploy. Four services, all on free plans:
 
 | Piece | Service | Why |
