@@ -1,21 +1,14 @@
-const fs = require('fs');
-const path = require('path');
+// Storage abstraction. Every upload/download/delete in the app goes through the
+// { save, createReadStream, remove } interface — swap the backing store with
+// STORAGE_DRIVER without touching any caller (documents + analysis modules).
+//
+//   STORAGE_DRIVER=local  (default) → local disk under UPLOAD_DIR
+//   STORAGE_DRIVER=s3              → S3-compatible object storage (see drivers/s3.js)
+//
+// The chosen driver is required lazily so the AWS SDK is only loaded when s3 is
+// actually selected (keeps dev/test installs and startup light).
+const driver = (process.env.STORAGE_DRIVER || 'local').toLowerCase() === 's3'
+  ? require('./drivers/s3')
+  : require('./drivers/local');
 
-const baseDir = () => process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
-const full = (key) => path.join(baseDir(), key);
-
-async function save(buffer, key) {
-  const target = full(key);
-  await fs.promises.mkdir(path.dirname(target), { recursive: true });
-  await fs.promises.writeFile(target, buffer);
-}
-
-function createReadStream(key) {
-  return fs.createReadStream(full(key));
-}
-
-async function remove(key) {
-  await fs.promises.rm(full(key), { force: true });
-}
-
-module.exports = { save, createReadStream, remove };
+module.exports = driver;

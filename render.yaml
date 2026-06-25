@@ -1,0 +1,46 @@
+# Render blueprint for the SmartJobSearch API (free web service).
+# Postgres is hosted separately on Neon (free, persistent) — set DATABASE_URL
+# to the Neon pooled connection string. Uploads go to S3-compatible object
+# storage (STORAGE_DRIVER=s3) so they survive redeploys on Render's ephemeral
+# disk. See DEPLOY.md for the full provisioning walkthrough.
+services:
+  - type: web
+    name: smartjobsearch-api
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy && node src/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Neon pooled connection string (postgresql://...:5432/...?sslmode=require)
+      - key: DATABASE_URL
+        sync: false
+      # Auto-generated strong secrets (Render fills these on first deploy).
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      # Exact frontend origin, e.g. https://smartjobsearch.vercel.app (no trailing slash).
+      - key: CORS_ORIGIN
+        sync: false
+      # Object storage for uploads (Supabase Storage / Cloudflare R2 / S3).
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # Optional AI layer — leave unset to keep résumé analysis deterministic.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        sync: false

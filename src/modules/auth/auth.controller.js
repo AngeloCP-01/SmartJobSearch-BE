@@ -5,10 +5,15 @@ const REFRESH_COOKIE = 'refreshToken';
 
 // Persistent ("remember me") → a Max-Age cookie that survives browser restarts.
 // Otherwise a session cookie (no Max-Age) that's cleared when the browser closes.
+//
+// In production the frontend (Vercel) and API live on different origins, so the
+// refresh cookie must be SameSite=None to be sent on the cross-site /auth/refresh
+// call — and browsers only accept SameSite=None when Secure is also set.
+const isProd = process.env.NODE_ENV === 'production';
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
   path: '/api/auth',
   ...(rememberMe ? { maxAge: REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 } : {}),
 });
