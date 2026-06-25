@@ -6,28 +6,29 @@ const RESULT_SCHEMA = z.object({
   suggestions: z.array(z.object({ text: z.string(), severity: z.enum(['high', 'medium', 'low']) })),
 });
 
-const JSON_SCHEMA = {
-  name: 'resume_match',
-  strict: true,
-  schema: {
-    type: 'object', additionalProperties: false, required: ['skills', 'suggestions'],
-    properties: {
-      skills: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['term', 'type', 'present'],
-        properties: { term: { type: 'string' }, type: { type: 'string', enum: ['hard', 'soft'] }, present: { type: 'boolean' } } } },
-      suggestions: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text', 'severity'],
-        properties: { text: { type: 'string' }, severity: { type: 'string', enum: ['high', 'medium', 'low'] } } } },
-    },
-  },
-};
+// Free OpenRouter providers don't reliably honor strict json_schema/constrained
+// decoding, so we rely on a forceful prompt + json_object hint + lenient
+// extraction + Zod validation instead (works across many more free models).
+const SYSTEM = [
+  'You are a strict JSON generator for résumé/job-description matching.',
+  'Respond with ONLY one minified JSON object — no prose, no explanation, no markdown fences.',
+  'Exact shape: {"skills":[{"term":"string","type":"hard","present":true}],"suggestions":[{"text":"string","severity":"high"}]}',
+  '"type" is "hard" or "soft". "severity" is "high", "medium", or "low".',
+  'Extract skills ONLY from the job description (skip generic filler words).',
+  'Set present=true only if the skill clearly appears in the résumé, else false.',
+  'Write a few concrete, honest suggestions for the most important missing skills (no keyword stuffing).',
+].join(' ');
 
-const SYSTEM = 'You extract skills to match a résumé against a job description. Use ONLY skills explicitly stated in the job description. Mark a skill present:true only if it clearly appears in the résumé, otherwise present:false. Never invent skills that are not in the job description. Keep suggestions concrete and honest — do not encourage keyword stuffing. Respond with JSON only.';
+const DEFAULT_MODEL = 'openai/gpt-oss-120b:free';
+const TIMEOUT_MS = 40000;
 
-// A current free model that honors structured outputs (verified 2026-06).
-// Override via OPENROUTER_MODEL. See openrouter.ai/models?supported_parameters=structured_outputs
-const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
-// Free models commonly take 8–12s and queue under load; give generous headroom
-// (we still fail-fast to the deterministic matcher if it's exceeded).
-const TIMEOUT_MS = 30000;
+// Pull the JSON object out of a response that may include prose or ```json fences.
+function extractJson(s) {
+  const text = String(s);
+  const a = text.indexOf('{');
+  const b = text.lastIndexOf('}');
+  return a >= 0 && b > a ? text.slice(a, b + 1) : text;
+}
 
 async function complete(resumeText, jobDescription) {
   const key = process.env.OPENROUTER_API_KEY;
@@ -50,9 +51,8 @@ async function complete(resumeText, jobDescription) {
       body: JSON.stringify({
         model,
         temperature: 0,
-        max_tokens: 800,
-        provider: { require_parameters: true },
-        response_format: { type: 'json_schema', json_schema: JSON_SCHEMA },
+        max_tokens: 1500,
+        response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM },
           { role: 'user', content: `JOB DESCRIPTION:\n${jobDescription}\n\nRÉSUMÉ:\n${resumeText}` },
@@ -63,7 +63,7 @@ async function complete(resumeText, jobDescription) {
     const data = await res.json();
     const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     if (!content) throw new Error('OpenRouter returned no content');
-    const result = RESULT_SCHEMA.parse(JSON.parse(content));
+    const result = RESULT_SCHEMA.parse(JSON.parse(extractJson(content)));
     return { result, model };
   } finally {
     clearTimeout(timer);
@@ -89,4 +89,4 @@ async function aiMatch(resumeText, jobDescription) {
   return { matchScore, matched, missing, suggestions, model };
 }
 
-module.exports = { complete, aiMatch };
+module.exports = { complete, aiMatch, extractJson };

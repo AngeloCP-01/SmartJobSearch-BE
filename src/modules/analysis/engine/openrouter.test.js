@@ -23,7 +23,7 @@ test('aiMatch maps LLM skills to matched/missing + weighted score + ai suggestio
   expect(r.model).toBe('test/model:free');
 });
 
-test('complete sends a json_schema request with auth + temperature 0', async () => {
+test('complete sends a json_object request with auth + temperature 0', async () => {
   let captured;
   global.fetch = jest.fn().mockImplementation((url, opts) => { captured = { url, opts }; return Promise.resolve(okResponse({ skills: [], suggestions: [] })); });
   await complete('resume', 'jd');
@@ -31,9 +31,17 @@ test('complete sends a json_schema request with auth + temperature 0', async () 
   expect(captured.opts.headers.Authorization).toBe('Bearer test-key');
   const body = JSON.parse(captured.opts.body);
   expect(body.temperature).toBe(0);
-  expect(body.response_format.type).toBe('json_schema');
-  expect(body.provider.require_parameters).toBe(true);
+  expect(body.response_format.type).toBe('json_object');
   expect(body.model).toBe('test/model:free');
+});
+
+test('lenient parse: JSON wrapped in prose / markdown fences still works', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: 'Here you go:\n```json\n{"skills":[{"term":"java","type":"hard","present":true}],"suggestions":[]}\n```' } }] }),
+  });
+  const r = await aiMatch('java', 'need java');
+  expect(r.matched.map((e) => e.term)).toEqual(['java']);
 });
 
 test('no API key → throws (caller will fall back)', async () => {
