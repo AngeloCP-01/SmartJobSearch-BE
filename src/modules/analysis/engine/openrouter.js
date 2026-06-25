@@ -24,8 +24,10 @@ const SYSTEM = 'You extract skills to match a résumé against a job description
 
 // A current free model that honors structured outputs (verified 2026-06).
 // Override via OPENROUTER_MODEL. See openrouter.ai/models?supported_parameters=structured_outputs
-const DEFAULT_MODEL = 'nvidia/nemotron-nano-9b-v2:free';
-const TIMEOUT_MS = 15000;
+const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
+// Free models commonly take 8–12s and queue under load; give generous headroom
+// (we still fail-fast to the deterministic matcher if it's exceeded).
+const TIMEOUT_MS = 30000;
 
 async function complete(resumeText, jobDescription) {
   const key = process.env.OPENROUTER_API_KEY;
