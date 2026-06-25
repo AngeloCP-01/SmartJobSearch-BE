@@ -46,8 +46,11 @@ async function run(userId, { applicationId, documentId, useAi }) {
         aiSuggestions = r.suggestions;
         aiUsed = true;
         aiModel = r.model;
-      } catch {
-        match = matchJd(text, jd); // graceful fallback on any AI failure
+      } catch (err) {
+        // Graceful fallback on any AI failure — but make the reason visible.
+        const model = process.env.OPENROUTER_MODEL || 'default';
+        console.warn(`[analysis] AI analysis unavailable (kind=${err.kind || 'unknown'}, model=${model}); falling back to deterministic match: ${err.message}`);
+        match = matchJd(text, jd);
       }
     } else {
       match = matchJd(text, jd);

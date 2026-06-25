@@ -118,14 +118,40 @@ test('useAi + key + AI success → aiUsed true with AI match + ai suggestions', 
 test('useAi + key + AI throws → falls back to deterministic (never 500)', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   aiMatch.mockRejectedValue(new Error('rate limited'));
-  const { token } = await registerAndLogin();
-  const appId = await makeApp(token, 'Node.js and PostgreSQL.');
-  const docId = await uploadResume(token);
-  const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
-  expect(run.status).toBe(201);
-  expect(run.body.report.meta.aiUsed).toBe(false);
-  expect(typeof run.body.matchScore).toBe('number');
-  delete process.env.OPENROUTER_API_KEY;
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
+    expect(run.status).toBe(201);
+    expect(run.body.report.meta.aiUsed).toBe(false);
+    expect(typeof run.body.matchScore).toBe('number');
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
+});
+
+test('useAi + key + AI throws → logs a diagnostic warning before falling back', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  const aiErr = Object.assign(new Error('OpenRouter request failed: 429 — rate limit exceeded'), { kind: 'http', status: 429 });
+  aiMatch.mockRejectedValue(aiErr);
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
+    expect(run.status).toBe(201);
+    expect(warn).toHaveBeenCalled();
+    const logged = warn.mock.calls.flat().join(' ');
+    expect(logged).toContain('429');
+    expect(logged).toMatch(/AI|OpenRouter|fall/i);
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
 });
 
 test('useAi + NO key → deterministic, AI never attempted', async () => {
