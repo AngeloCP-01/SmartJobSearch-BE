@@ -57,15 +57,17 @@ const EXTRACT_SCHEMA = z.object({
   companyName: z.string().nullable().optional(),
   salaryMin: z.number().nullable().optional(),
   salaryMax: z.number().nullable().optional(),
+  workMode: z.enum(['Remote', 'Hybrid', 'OnSite']).nullable().optional(),
   jobDescription: z.string().nullable().optional(),
 });
 
 const SYSTEM = [
   'You extract structured fields from a job posting.',
   'Respond with ONLY one minified JSON object — no prose, no markdown fences.',
-  'Shape: {"position":string|null,"companyName":string|null,"salaryMin":number|null,"salaryMax":number|null,"jobDescription":string|null}',
+  'Shape: {"position":string|null,"companyName":string|null,"salaryMin":number|null,"salaryMax":number|null,"workMode":"Remote"|"Hybrid"|"OnSite"|null,"jobDescription":string|null}',
   'position = the job title. companyName = the hiring company (not the job board).',
   'salaryMin/salaryMax = annual figures as plain integers in the posting currency (e.g. "120k" → 120000; if monthly, ×12); null if not stated.',
+  'workMode = "Remote" (remote/WFH/work-from-home), "Hybrid", or "OnSite" (on-site/office/in-person); null if not stated.',
   'jobDescription = the responsibilities/requirements text with line breaks preserved; null if none.',
 ].join(' ');
 
@@ -97,6 +99,7 @@ async function parsePosting(userId, { content }) {
     companyName: out.companyName || null,
     salaryMin: toInt(out.salaryMin),
     salaryMax: toInt(out.salaryMax),
+    workMode: out.workMode || null,
     // For pasted text, keep exactly what the user copied (formatting intact);
     // for a URL we only have the stripped page text, so use the AI's extraction.
     jobDescription: url ? (out.jobDescription || text) : raw,

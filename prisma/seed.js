@@ -101,6 +101,11 @@ async function main() {
     { key: 'helioDevops', position: 'DevOps Engineer', company: 'Helio Fintech', status: 'Draft', salaryMin: null, salaryMax: null, appliedAgo: null, source: '', notes: 'Draft — tailor résumé before applying.' },
     { key: 'lumenStaff', position: 'Staff Engineer', company: 'Lumen Health', status: 'Withdrawn', salaryMin: 150000, salaryMax: 190000, appliedAgo: 50, source: 'https://lumen.example.com/careers', notes: 'Withdrew — relocation required.' },
   ];
+  const WORK_MODE = {
+    northwindSenior: 'Remote', helioBackend: 'Hybrid', brightwaveFs: 'Remote',
+    lumenFrontend: 'OnSite', acmeSwe: 'Remote', techflowNode: 'Remote',
+    northwindPlatform: 'Hybrid', brightwaveReact: 'Remote', lumenStaff: 'OnSite',
+  };
   const apps = {};
   for (const a of appData) {
     const row = await prisma.application.create({
@@ -113,6 +118,7 @@ async function main() {
         salaryMin: a.salaryMin,
         salaryMax: a.salaryMax,
         source: a.source || null,
+        workMode: WORK_MODE[a.key] || null,
         jobDescription: a.status === 'Draft' ? null : jd(a.position),
         notes: a.notes || null,
         createdAt: a.appliedAgo == null ? daysAgo(2) : daysAgo(a.appliedAgo),

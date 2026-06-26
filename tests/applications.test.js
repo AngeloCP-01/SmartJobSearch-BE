@@ -16,9 +16,9 @@ test('create an application (defaults to Draft) and list it', async () => {
   const { token } = await registerAndLogin();
   const companyId = await makeCompany(token);
   const res = await agent().post('/api/applications').set(auth(token))
-    .send({ position: 'Backend Engineer', companyId });
+    .send({ position: 'Backend Engineer', companyId, workMode: 'Remote' });
   expect(res.status).toBe(201);
-  expect(res.body).toMatchObject({ position: 'Backend Engineer', status: 'Draft', companyId });
+  expect(res.body).toMatchObject({ position: 'Backend Engineer', status: 'Draft', companyId, workMode: 'Remote' });
 
   const list = await agent().get('/api/applications').set(auth(token));
   expect(list.body).toHaveLength(1);

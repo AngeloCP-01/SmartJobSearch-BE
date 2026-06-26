@@ -18,14 +18,14 @@ test('requires authentication (401)', async () => {
 test('parses pasted posting text into application fields; keeps the text verbatim as the JD', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   generateJson.mockResolvedValue({
-    data: { position: 'Backend Engineer', companyName: 'Acme', salaryMin: 120000, salaryMax: 150000, jobDescription: 'ignored for pasted text' },
+    data: { position: 'Backend Engineer', companyName: 'Acme', salaryMin: 120000, salaryMax: 150000, workMode: 'Remote', jobDescription: 'ignored for pasted text' },
     model: 'm',
   });
   const { token } = await registerAndLogin();
-  const posting = 'Backend Engineer at Acme\nResponsibilities:\n- Build APIs\nSalary 120k–150k';
+  const posting = 'Backend Engineer at Acme (Remote)\nResponsibilities:\n- Build APIs\nSalary 120k–150k';
   const res = await agent().post('/api/postings/parse').set(auth(token)).send({ content: posting });
   expect(res.status).toBe(200);
-  expect(res.body).toMatchObject({ position: 'Backend Engineer', companyName: 'Acme', salaryMin: 120000, salaryMax: 150000, source: null });
+  expect(res.body).toMatchObject({ position: 'Backend Engineer', companyName: 'Acme', salaryMin: 120000, salaryMax: 150000, workMode: 'Remote', source: null });
   expect(res.body.jobDescription).toBe(posting); // pasted text preserved exactly
 });
 

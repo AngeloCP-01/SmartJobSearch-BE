@@ -19,6 +19,12 @@ enum ApplicationStatus {
   Withdrawn
 }
 
+enum WorkMode {
+  Remote
+  Hybrid
+  OnSite
+}
+
 enum InterviewType {
   HR
   Technical
@@ -105,6 +111,7 @@ model Application {
   salaryMin       Int?
   salaryMax       Int?
   source          String?
+  workMode        WorkMode?
   jobDescription  String?
   notes           String?
   createdAt       DateTime          @default(now())
