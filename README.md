@@ -1,10 +1,38 @@
-# Smart Job Search CRM — Backend (v1)
+# Smart Job Search CRM — API
 
-Modular-monolith REST API for a multi-user job-application tracker: auth, companies, applications (with a Kanban status endpoint), interviews, and a dashboard summary.
+Modular-monolith REST API for a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, and an **AI-assisted résumé/ATS analysis** engine.
+
+[![Backend CI](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml/badge.svg)](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml)
+&nbsp;**[▶ Live demo](https://smart-job-search-fe.vercel.app)** · **[Frontend repo](https://github.com/AngeloCP-01/SmartJobSearch-FE)** · **[Deploy guide](./DEPLOY.md)**
 
 ## Stack
 
-Node.js · Express · PostgreSQL (Prisma) · JWT (access + refresh cookie) · Zod · Jest + Supertest.
+Node.js · Express · PostgreSQL (Prisma) · JWT (access + httpOnly refresh cookie) · Zod · OpenRouter (AI) · Jest + Supertest. Deployed on Render + Neon + Supabase Storage.
+
+## Architecture
+
+A **modular monolith** — one module per domain, each with its own `routes → controller → service → schema` and integration tests, sharing a thin infra layer.
+
+```
+src/
+  modules/
+    auth/ companies/ applications/ interviews/ contacts/
+    documents/ activity/ analysis/ reminders/ dashboard/
+  shared/
+    database/   (Prisma client singleton)
+    storage/    (save/createReadStream/remove — local-disk or S3 driver)
+    middleware/ utils/
+  routes/index.js   app.js   server.js
+prisma/schema.prisma   prisma/seed.js
+tests/
+```
+
+### Engineering highlights
+
+- **Resilient auth** — short-lived access JWT + rotating refresh token in an httpOnly cookie; cross-site `SameSite=None; Secure` in production.
+- **AI with a safety net** — the analysis engine tries a chain of LLM models, **fast-fails on 429 rate limits** to the next model, and falls back to a deterministic keyword matcher so the feature never hard-fails. Reports are validated with Zod.
+- **Swappable storage** — a `save/createReadStream/remove` interface backs both local disk (dev) and S3-compatible object storage (prod, e.g. Supabase/R2) so uploads survive an ephemeral-disk host. Chosen by one env var; no caller changes.
+- **Per-user isolation** — every query is scoped to the authenticated user; tests assert one user can’t read/modify another’s data.
 
 ## Prerequisites
 
@@ -14,61 +42,43 @@ Node.js · Express · PostgreSQL (Prisma) · JWT (access + refresh cookie) · Zo
 ## Setup
 
 ```bash
-# 1. Start Postgres (host port 5434 → container 5432)
-docker compose up -d
-
-# 2. Create the test database (one-time)
-docker compose exec db psql -U crm -d jobcrm -c "CREATE DATABASE jobcrm_test;"
-
-# 3. Configure env
+docker compose up -d                                                   # Postgres on host port 5434
+docker compose exec db psql -U crm -d jobcrm -c "CREATE DATABASE jobcrm_test;"   # one-time, for tests
 cp .env.example .env
-
-# 4. Install dependencies
 npm install
-
-# 5. Apply migrations + generate the Prisma client
-npm run migrate
-
-# 6. Run the API (http://localhost:4000)
-npm run dev
+npm run migrate                                                        # apply migrations + generate client
+npm run dev                                                            # http://localhost:4000
+npm run seed                                                           # optional: load the demo dataset
 ```
 
-> **Port note:** local Postgres is published on host port **5434** to avoid clashing with other local Postgres instances on 5432. `DATABASE_URL` in `.env` / `.env.test` already points at 5434.
+> **Port note:** local Postgres is published on **5434** to avoid clashing with other Postgres on 5432. `.env` / `.env.test` already point there.
 
 ## Tests
 
 ```bash
-npm test
+npm test    # Jest + Supertest against jobcrm_test; global setup applies migrations
 ```
 
-Integration tests (Jest + Supertest) run against the `jobcrm_test` database; the global setup applies migrations automatically. Every module covers happy paths, validation errors, auth requirements, and cross-user isolation.
+Every module covers happy paths, validation errors, auth requirements, and cross-user isolation. CI runs the suite against a Postgres service container on every push/PR.
 
 ## API
 
-All routes are mounted under `/api`.
+All routes are under `/api`; authenticated requests send `Authorization: Bearer <accessToken>` and the refresh token rides in an httpOnly cookie scoped to `/api/auth`.
 
 | Area | Endpoints |
 |------|-----------|
-| Health | `GET /api/health` |
-| Auth | `POST /api/auth/register` · `/login` · `/refresh` · `/logout` · `GET /api/auth/me` |
-| Companies | `GET /api/companies?search=` · `POST` · `GET/PATCH/DELETE /api/companies/:id` |
-| Applications | `GET /api/applications?status=` · `POST` · `GET/PATCH/DELETE /:id` · `PATCH /:id/status` |
-| Interviews | `GET /api/interviews?applicationId=` · `POST` · `GET/PATCH/DELETE /:id` |
-| Dashboard | `GET /api/dashboard/summary` |
+| Health | `GET /health` |
+| Auth | `POST /auth/register` · `/login` · `/refresh` · `/logout` · `GET /auth/me` |
+| Companies | `GET /companies?search=` · `POST` · `GET/PATCH/DELETE /companies/:id` |
+| Applications | `GET /applications?status=` · `POST` · `GET/PATCH/DELETE /:id` · `PATCH /:id/status` |
+| Interviews | `GET /interviews?applicationId=` · `POST` · `GET/PATCH/DELETE /:id` |
+| Contacts | `GET /contacts` · `POST` · `GET/PATCH/DELETE /:id` · link/unlink to applications |
+| Documents | `GET /documents` · `POST` (multipart) · `GET /:id/file` · `PATCH/DELETE /:id` · link/unlink |
+| Analysis | `POST /analysis` · `GET /analysis` · `GET /:id` · `DELETE /:id` · `GET /analysis/config` |
+| Activity | `GET /activity?applicationId=&cursor=` |
+| Reminders | `GET /reminders` |
+| Dashboard / Analytics | `GET /dashboard/summary` · `GET /analytics` |
 
-Authenticated requests send `Authorization: Bearer <accessToken>`; the refresh token is an httpOnly cookie scoped to `/api/auth`.
+## Deployment
 
-## Project structure
-
-```
-src/
-  modules/{auth,companies,applications,interviews,dashboard}/   # routes → controller → service → schema
-  shared/{database, middleware, utils}/
-  routes/index.js   app.js   server.js
-prisma/schema.prisma
-tests/
-```
-
-## Status
-
-v1 backend (BE-0…BE-5) complete. Deployment (BE-6) is handled separately. See `docs/superpowers/specs/` and `docs/superpowers/plans/` for the design spec and implementation plan.
+Full free-tier walkthrough (Neon + Supabase + Render + Vercel), with the cross-origin cookie/CORS gotchas, in **[`DEPLOY.md`](./DEPLOY.md)**.
