@@ -14,7 +14,9 @@ const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: isProd,
   sameSite: isProd ? 'none' : 'lax',
-  path: '/api/auth',
+  // Scoped to /api so the refresh cookie is sent on both the canonical
+  // (/api/v1/auth) and aliased (/api/auth) auth routes.
+  path: '/api',
   ...(rememberMe ? { maxAge: REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 } : {}),
 });
 

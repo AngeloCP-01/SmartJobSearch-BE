@@ -22,7 +22,7 @@ test('register creates a user and returns an access token + refresh cookie', asy
   const cookie = res.headers['set-cookie'].join(';');
   expect(cookie).toMatch(/refreshToken=/);
   expect(cookie).toMatch(/HttpOnly/i);
-  expect(cookie).toMatch(/Path=\/api\/auth/i);
+  expect(cookie).toMatch(/Path=\/api(;|$)/i);
 });
 
 test('register rejects a duplicate email with 409', async () => {
