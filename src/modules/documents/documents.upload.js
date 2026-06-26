@@ -5,6 +5,7 @@ const ALLOWED = new Set([
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain', // e.g. an AI-generated cover letter saved from the app
 ]);
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -13,7 +14,7 @@ const handler = multer({
   limits: { fileSize: MAX_BYTES },
   fileFilter: (req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) return cb(null, true);
-    return cb(new ValidationError('Unsupported file type', [{ path: 'file', message: 'Only PDF, DOC, or DOCX files are allowed' }]));
+    return cb(new ValidationError('Unsupported file type', [{ path: 'file', message: 'Only PDF, DOC, DOCX, or TXT files are allowed' }]));
   },
 }).single('file');
 

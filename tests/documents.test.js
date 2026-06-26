@@ -46,8 +46,18 @@ test('uploads a document and lists it', async () => {
 
 test('rejects a disallowed file type (400)', async () => {
   const { token } = await registerAndLogin();
-  const res = await upload(token, { buf: Buffer.from('hi'), filename: 'note.txt', contentType: 'text/plain' });
+  const res = await upload(token, { buf: Buffer.from('PNGDATA'), filename: 'photo.png', contentType: 'image/png' });
   expect(res.status).toBe(400);
+});
+
+test('accepts a .txt upload (e.g. a saved cover letter)', async () => {
+  const { token } = await registerAndLogin();
+  const res = await upload(token, {
+    name: 'Cover Letter', type: 'CoverLetter',
+    buf: Buffer.from('Dear Hiring Team, …'), filename: 'cover.txt', contentType: 'text/plain',
+  });
+  expect(res.status).toBe(201);
+  expect(res.body).toMatchObject({ name: 'Cover Letter', type: 'CoverLetter', mimeType: 'text/plain' });
 });
 
 test('rejects a file over 5MB (400)', async () => {
