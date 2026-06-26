@@ -1,0 +1,25 @@
+name: Keep API warm
+
+# Render's free web service spins down after ~15 min idle (a cold start then
+# takes ~30-60s). For a portfolio demo we ping the health endpoint every ~14 min
+# so a reviewer clicking the live link hits a warm server.
+#
+# Note: GitHub disables scheduled workflows after 60 days of repo inactivity, and
+# free-runner cron times can drift. For a rock-solid keep-alive, also/instead set
+# up a free monitor at cron-job.org or uptimerobot.com hitting the same URL.
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 \
+            https://smartjobsearch-api.onrender.com/api/health)
+          echo "health responded: $code"
+          test "$code" = "200"
