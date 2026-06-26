@@ -1,4 +1,4 @@
-# Smart Job Search CRM — API
+# Job Application Tracker — API
 
 Modular-monolith REST API for a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, and an **AI-assisted résumé/ATS analysis** engine.
 
@@ -17,7 +17,7 @@ A **modular monolith** — one module per domain, each with its own `routes → 
 src/
   modules/
     auth/ companies/ applications/ interviews/ contacts/
-    documents/ activity/ analysis/ reminders/ dashboard/
+    documents/ activity/ analysis/ postings/ reminders/ dashboard/
   shared/
     database/   (Prisma client singleton)
     storage/    (save/createReadStream/remove — local-disk or S3 driver)
@@ -75,6 +75,7 @@ All routes are under `/api`; authenticated requests send `Authorization: Bearer 
 | Contacts | `GET /contacts` · `POST` · `GET/PATCH/DELETE /:id` · link/unlink to applications |
 | Documents | `GET /documents` · `POST` (multipart; PDF/DOC/DOCX/TXT) · `GET /:id/file` · `PATCH/DELETE /:id` · link/unlink |
 | Analysis | `POST /analysis` · `GET /analysis` · `GET /:id` · `DELETE /:id` · `GET /analysis/config` · `POST /analysis/cover-letter` (AI) |
+| Postings | `POST /postings/parse` — AI-extract application fields from pasted text/URL |
 | Activity | `GET /activity?applicationId=&cursor=` |
 | Reminders | `GET /reminders` |
 | Dashboard / Analytics | `GET /dashboard/summary` · `GET /analytics` |

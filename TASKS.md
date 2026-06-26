@@ -8,7 +8,7 @@ Master coordination: `../TASKS.md`
 >
 > **v1.5 (application details):** application responses include `company {id,name}`; `PATCH` with `companyId: null` unlinks. Spec: `docs/superpowers/specs/2026-06-23-application-details-design.md`.
 
-> **Update (2026-06-26):** **BE-6 deploy done** — API live on Render + Neon + Supabase (`DEPLOY.md`). Plus a portfolio-readiness pass: **demo seed** (`prisma/seed.js`, seeded to prod), **keep-alive** + **CI** GitHub Actions, and a rewritten portfolio README. Tests **160 passing / 1 skipped — green in CI**. See `TRACKER.md` Notes.
+> **Update (2026-06-26):** **BE-6 deploy done** — API live on Render + Neon + Supabase (`DEPLOY.md`). Plus a portfolio-readiness pass: **demo seed** (`prisma/seed.js`, seeded to prod), **keep-alive** + **CI** GitHub Actions, and a rewritten portfolio README. Then AI features: **cover-letter generator** + **job-posting auto-import** (`postings` module). Fixed the serial-suite test-DB flake (`connection_limit=1`). Tests **170 passing / 1 skipped — reliably green in CI**. See `TRACKER.md` Notes.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
