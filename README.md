@@ -73,7 +73,7 @@ All routes are under `/api`; authenticated requests send `Authorization: Bearer 
 | Applications | `GET /applications?status=` · `POST` · `GET/PATCH/DELETE /:id` · `PATCH /:id/status` |
 | Interviews | `GET /interviews?applicationId=` · `POST` · `GET/PATCH/DELETE /:id` |
 | Contacts | `GET /contacts` · `POST` · `GET/PATCH/DELETE /:id` · link/unlink to applications |
-| Documents | `GET /documents` · `POST` (multipart) · `GET /:id/file` · `PATCH/DELETE /:id` · link/unlink |
+| Documents | `GET /documents` · `POST` (multipart; PDF/DOC/DOCX/TXT) · `GET /:id/file` · `PATCH/DELETE /:id` · link/unlink |
 | Analysis | `POST /analysis` · `GET /analysis` · `GET /:id` · `DELETE /:id` · `GET /analysis/config` · `POST /analysis/cover-letter` (AI) |
 | Activity | `GET /activity?applicationId=&cursor=` |
 | Reminders | `GET /reminders` |
