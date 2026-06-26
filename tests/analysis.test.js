@@ -6,7 +6,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'analysis-it-'));
 process.env.UPLOAD_DIR = tmpDir;
 
 jest.mock('../src/modules/analysis/engine/openrouter');
-const { aiMatch } = require('../src/modules/analysis/engine/openrouter');
+const { aiMatch, generateTextWithFallback } = require('../src/modules/analysis/engine/openrouter');
 
 const { agent } = require('./helpers/testApp');
 const { prisma, resetDb } = require('./helpers/db');
@@ -164,6 +164,60 @@ test('useAi + NO key → deterministic, AI never attempted', async () => {
   expect(run.status).toBe(201);
   expect(run.body.report.meta.aiUsed).toBe(false);
   expect(aiMatch).not.toHaveBeenCalled();
+});
+
+// --- AI cover-letter generator ---
+
+test('generates a cover letter from a JD + résumé when AI is available', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateTextWithFallback.mockReset();
+  generateTextWithFallback.mockResolvedValue({ text: 'Dear Hiring Team, I am excited to apply…', model: 'test/model:free' });
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Rust and Elixir and good communication.');
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/cover-letter').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  expect(res.body.coverLetter).toContain('Dear Hiring Team');
+  expect(res.body.meta).toMatchObject({ position: 'Backend Engineer', documentName: 'My Resume', model: 'test/model:free' });
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('cover letter requires a job description (400)', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, undefined);
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/cover-letter').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(400);
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('cover letter needs AI configured → 503, never calls the model, when no key', async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  generateTextWithFallback.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'Node.js role with REST APIs.');
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/cover-letter').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(503);
+  expect(generateTextWithFallback).not.toHaveBeenCalled();
+});
+
+test('cover letter surfaces a friendly 503 when the AI service fails', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateTextWithFallback.mockReset();
+  generateTextWithFallback.mockRejectedValue(Object.assign(new Error('429 rate limited'), { kind: 'http', status: 429 }));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const res = await agent().post('/api/analysis/cover-letter').set(auth(token)).send({ applicationId: appId, documentId: docId });
+    expect(res.status).toBe(503);
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
 });
 
 test('GET /api/analysis/config reflects the API key presence', async () => {

@@ -4,6 +4,10 @@ async function run(req, res, next) {
   try { res.status(201).json(await service.run(req.userId, req.body)); }
   catch (e) { next(e); }
 }
+async function generateCoverLetter(req, res, next) {
+  try { res.status(201).json(await service.generateCoverLetter(req.userId, req.body)); }
+  catch (e) { next(e); }
+}
 async function list(req, res, next) {
   try { res.json(await service.list(req.userId)); }
   catch (e) { next(e); }
@@ -21,4 +25,4 @@ async function config(req, res, next) {
   catch (e) { next(e); }
 }
 
-module.exports = { run, list, getById, remove, config };
+module.exports = { run, generateCoverLetter, list, getById, remove, config };

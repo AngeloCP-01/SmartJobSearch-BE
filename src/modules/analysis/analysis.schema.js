@@ -6,6 +6,11 @@ const runAnalysisSchema = z.object({
   useAi: z.boolean().optional(),
 });
 
+const coverLetterSchema = z.object({
+  applicationId: z.string().uuid(),
+  documentId: z.string().uuid(),
+});
+
 const entrySchema = z.object({
   term: z.string(), type: z.enum(['hard', 'soft']),
   jdCount: z.number().int(), resumeCount: z.number().int(), weight: z.number(),
@@ -29,4 +34,4 @@ const analysisReportSchema = z.object({
   })),
 });
 
-module.exports = { runAnalysisSchema, analysisReportSchema };
+module.exports = { runAnalysisSchema, coverLetterSchema, analysisReportSchema };

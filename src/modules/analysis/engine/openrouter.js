@@ -72,10 +72,12 @@ function parseModels() {
   return list.length ? list : [DEFAULT_MODEL];
 }
 
-async function complete(resumeText, jobDescription, modelArg) {
+// One model, one attempt: the shared network exchange with OpenRouter. Returns
+// the assistant message content (a string); throws a tagged OpenRouterError.
+// Reused by both the JSON analysis (`complete`) and freeform text (`generateText`).
+async function chat(model, { messages, responseFormat, temperature = 0, maxTokens = 1500 }) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new OpenRouterError('OpenRouter API key not configured', 'config');
-  const model = modelArg || parseModels()[0];
   const base = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
 
   const controller = new AbortController();
@@ -86,6 +88,8 @@ async function complete(resumeText, jobDescription, modelArg) {
     // or midway through streaming the response body.
     let data;
     try {
+      const body = { model, temperature, max_tokens: maxTokens, messages };
+      if (responseFormat) body.response_format = responseFormat;
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
@@ -95,23 +99,14 @@ async function complete(resumeText, jobDescription, modelArg) {
           'HTTP-Referer': 'https://smart-job-search-crm.local',
           'X-Title': 'Smart Job Search CRM',
         },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          max_tokens: 1500,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: SYSTEM },
-            { role: 'user', content: `JOB DESCRIPTION:\n${jobDescription}\n\nRÉSUMÉ:\n${resumeText}` },
-          ],
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const body = await readBody(res);
+        const errBody = await readBody(res);
         const extra = { status: res.status, model };
-        const retryAfterMs = retryAfterMsFrom(res, body);
+        const retryAfterMs = retryAfterMsFrom(res, errBody);
         if (retryAfterMs != null) extra.retryAfterMs = retryAfterMs;
-        throw new OpenRouterError(`OpenRouter request failed: ${res.status}${body ? ` — ${body}` : ''} (model ${model})`, 'http', extra);
+        throw new OpenRouterError(`OpenRouter request failed: ${res.status}${errBody ? ` — ${errBody}` : ''} (model ${model})`, 'http', extra);
       }
       data = await res.json();
     } catch (e) {
@@ -122,15 +117,37 @@ async function complete(resumeText, jobDescription, modelArg) {
 
     const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     if (!content) throw new OpenRouterError(`OpenRouter returned no content (model ${model})`, 'parse', { model });
-    try {
-      const result = RESULT_SCHEMA.parse(JSON.parse(extractJson(content)));
-      return { result, model };
-    } catch (e) {
-      throw new OpenRouterError(`OpenRouter returned unusable output (model ${model}): ${e.message}`, 'parse', { model, cause: e });
-    }
+    return content;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function complete(resumeText, jobDescription, modelArg) {
+  const model = modelArg || parseModels()[0];
+  const content = await chat(model, {
+    messages: [
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: `JOB DESCRIPTION:\n${jobDescription}\n\nRÉSUMÉ:\n${resumeText}` },
+    ],
+    responseFormat: { type: 'json_object' },
+    temperature: 0,
+    maxTokens: 1500,
+  });
+  try {
+    const result = RESULT_SCHEMA.parse(JSON.parse(extractJson(content)));
+    return { result, model };
+  } catch (e) {
+    throw new OpenRouterError(`OpenRouter returned unusable output (model ${model}): ${e.message}`, 'parse', { model, cause: e });
+  }
+}
+
+// Freeform text generation (e.g. cover letters): raw assistant text, no JSON
+// parsing. A little warmth (temperature) since this is prose, not extraction.
+async function generateText(messages, modelArg) {
+  const model = modelArg || parseModels()[0];
+  const content = await chat(model, { messages, temperature: 0.7, maxTokens: 1200 });
+  return { text: content.trim(), model };
 }
 
 // Worth retrying the SAME model after a short backoff — a transient glitch that
@@ -152,8 +169,9 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Try each configured model in order; retry transient failures on a model with
 // exponential backoff before falling through to the next. Free OpenRouter models
 // are frequently rate-limited upstream, so this is the difference between "AI
-// unavailable" and a working result.
-async function completeWithFallback(resumeText, jobDescription) {
+// unavailable" and a working result. Generic over the per-model attempt so both
+// JSON analysis and text generation share one resilience policy.
+async function withModelFallback(attempt) {
   const models = parseModels();
   const attempts = Math.max(1, Number(process.env.OPENROUTER_ATTEMPTS || 3));
   const baseMs = Number(process.env.OPENROUTER_RETRY_BASE_MS ?? 400);
@@ -165,17 +183,17 @@ async function completeWithFallback(resumeText, jobDescription) {
   // Returns the result, or undefined if the whole chain failed without a fatal.
   async function sweep() {
     for (const model of models) {
-      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      for (let attemptN = 1; attemptN <= attempts; attemptN += 1) {
         try {
-          return await complete(resumeText, jobDescription, model); // eslint-disable-line no-await-in-loop
+          return await attempt(model); // eslint-disable-line no-await-in-loop
         } catch (err) {
           state.lastErr = err;
           if (isFatal(err)) throw err;
           if (err.kind === 'http' && err.status === 429 && Number.isFinite(err.retryAfterMs)) {
             state.minRetryAfterMs = Math.min(state.minRetryAfterMs, err.retryAfterMs);
           }
-          if (isRetryableSameModel(err) && attempt < attempts) {
-            await wait(baseMs * 2 ** (attempt - 1)); // eslint-disable-line no-await-in-loop
+          if (isRetryableSameModel(err) && attemptN < attempts) {
+            await wait(baseMs * 2 ** (attemptN - 1)); // eslint-disable-line no-await-in-loop
             continue;
           }
           break; // rate-limited (429), non-transient (parse), or out of retries → next model
@@ -198,6 +216,14 @@ async function completeWithFallback(resumeText, jobDescription) {
   throw state.lastErr;
 }
 
+function completeWithFallback(resumeText, jobDescription) {
+  return withModelFallback((model) => complete(resumeText, jobDescription, model));
+}
+
+function generateTextWithFallback(messages) {
+  return withModelFallback((model) => generateText(messages, model));
+}
+
 async function aiMatch(resumeText, jobDescription) {
   const { result, model } = await completeWithFallback(resumeText, jobDescription);
   const matched = [];
@@ -217,4 +243,6 @@ async function aiMatch(resumeText, jobDescription) {
   return { matchScore, matched, missing, suggestions, model };
 }
 
-module.exports = { complete, completeWithFallback, aiMatch, extractJson, OpenRouterError };
+module.exports = {
+  complete, completeWithFallback, generateText, generateTextWithFallback, aiMatch, extractJson, OpenRouterError,
+};

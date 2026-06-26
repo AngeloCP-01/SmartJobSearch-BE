@@ -1,13 +1,13 @@
 const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
-const { NotFoundError } = require('../../shared/utils/errors');
+const { NotFoundError, ValidationError, AppError } = require('../../shared/utils/errors');
 const { analysisReportSchema } = require('./analysis.schema');
 const { extractText } = require('./engine/extract');
 const { auditAts } = require('./engine/ats');
 const { matchJd } = require('./engine/match');
 const { buildSuggestions } = require('./engine/suggestions');
 const { tokenize } = require('./engine/text');
-const { aiMatch } = require('./engine/openrouter');
+const { aiMatch, generateTextWithFallback } = require('./engine/openrouter');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
@@ -124,8 +124,55 @@ async function remove(userId, id) {
   await prisma.resumeAnalysis.delete({ where: { id } });
 }
 
+// AI-generated, tailored cover letter from an application's job description +
+// the chosen résumé's text. Unlike analysis there's no deterministic fallback —
+// it's an explicitly AI-only feature — so a saturated provider surfaces a clear
+// "try again" rather than silently degrading.
+async function generateCoverLetter(userId, { applicationId, documentId }) {
+  const application = await prisma.application.findFirst({
+    where: { id: applicationId, userId }, include: { company: true },
+  });
+  if (!application) throw new NotFoundError('Application not found');
+  const document = await prisma.document.findFirst({ where: { id: documentId, userId } });
+  if (!document) throw new NotFoundError('Document not found');
+
+  const jd = (application.jobDescription || '').trim();
+  if (!jd) throw new ValidationError('This application has no job description — add one to generate a tailored cover letter.');
+  if (!process.env.OPENROUTER_API_KEY) throw new AppError('AI is not configured on the server.', 503, 'AI_UNAVAILABLE');
+
+  const buffer = await readBuffer(document.storageKey);
+  const { text: resumeText, ok } = await extractText(buffer, document.mimeType);
+  if (!ok) throw new ValidationError('Could not read text from that résumé (scanned PDFs and legacy .doc files are not supported).');
+
+  const companyName = application.company?.name || 'the company';
+  const position = application.position || 'the role';
+  const system = [
+    'You are an expert career writer. Write a concise, professional, specific cover letter.',
+    'Use ONLY facts supported by the résumé — never invent experience, employers, or metrics.',
+    'Open with genuine interest in the role and company, map the candidate’s most relevant strengths to the job requirements, and close with a confident call to action.',
+    'About 250–350 words across 3–4 short paragraphs. Return ONLY the letter body — no preamble, no markdown, no bracketed placeholders.',
+  ].join(' ');
+  const user = `COMPANY: ${companyName}\nROLE: ${position}\n\nJOB DESCRIPTION:\n${jd}\n\nCANDIDATE RÉSUMÉ:\n${resumeText}`;
+
+  let result;
+  try {
+    result = await generateTextWithFallback([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ]);
+  } catch (err) {
+    console.warn(`[cover-letter] AI generation failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+  }
+
+  return {
+    coverLetter: result.text,
+    meta: { companyName, position, documentName: document.name, model: result.model },
+  };
+}
+
 function config() {
   return { aiAvailable: Boolean(process.env.OPENROUTER_API_KEY) };
 }
 
-module.exports = { run, list, getById, remove, config };
+module.exports = { run, generateCoverLetter, list, getById, remove, config };
