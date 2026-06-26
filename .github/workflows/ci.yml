@@ -26,8 +26,10 @@ jobs:
 
     env:
       # Integration tests (Jest + Supertest) run against a real Postgres; the
-      # global setup applies migrations automatically.
-      DATABASE_URL: postgresql://crm:crm@localhost:5432/jobcrm_test?schema=public
+      # global setup applies migrations automatically. connection_limit=1 keeps
+      # each Jest file's Prisma pool tiny so the serial suite can't exhaust
+      # Postgres connections (the cause of intermittent cross-file failures).
+      DATABASE_URL: postgresql://crm:crm@localhost:5432/jobcrm_test?schema=public&connection_limit=1
       JWT_ACCESS_SECRET: ci-access-secret
       JWT_REFRESH_SECRET: ci-refresh-secret
       NODE_ENV: test

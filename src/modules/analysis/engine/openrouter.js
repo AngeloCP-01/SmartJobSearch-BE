@@ -224,6 +224,21 @@ function generateTextWithFallback(messages) {
   return withModelFallback((model) => generateText(messages, model));
 }
 
+// Structured JSON generation against a caller-supplied Zod schema — like
+// complete() but generic (any schema/prompt). Returns { data, model }.
+async function generateJsonOnce(messages, schema, modelArg) {
+  const model = modelArg || parseModels()[0];
+  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: 1500 });
+  try {
+    return { data: schema.parse(JSON.parse(extractJson(content))), model };
+  } catch (e) {
+    throw new OpenRouterError(`OpenRouter returned unusable output (model ${model}): ${e.message}`, 'parse', { model, cause: e });
+  }
+}
+function generateJson(messages, schema) {
+  return withModelFallback((model) => generateJsonOnce(messages, schema, model));
+}
+
 async function aiMatch(resumeText, jobDescription) {
   const { result, model } = await completeWithFallback(resumeText, jobDescription);
   const matched = [];
@@ -244,5 +259,5 @@ async function aiMatch(resumeText, jobDescription) {
 }
 
 module.exports = {
-  complete, completeWithFallback, generateText, generateTextWithFallback, aiMatch, extractJson, OpenRouterError,
+  complete, completeWithFallback, generateText, generateTextWithFallback, generateJson, aiMatch, extractJson, OpenRouterError,
 };

@@ -10,6 +10,7 @@ const remindersRoutes = require('../modules/reminders/reminders.routes');
 const documentsRoutes = require('../modules/documents/documents.routes');
 const activityRoutes = require('../modules/activity/activity.routes');
 const analysisRoutes = require('../modules/analysis/analysis.routes');
+const postingsRoutes = require('../modules/postings/postings.routes');
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/reminders', remindersRoutes);
 router.use('/documents', documentsRoutes);
 router.use('/activity', activityRoutes);
 router.use('/analysis', analysisRoutes);
+router.use('/postings', postingsRoutes);
 
 module.exports = router;
