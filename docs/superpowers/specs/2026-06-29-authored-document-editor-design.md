@@ -79,4 +79,26 @@ Validation via the existing `*.schema.js` pattern. All queries scoped by `userId
 
 ## Out of scope for v1
 
-Fonts / font-size, text color / highlight, images, tables, find-replace, comments, real-time collaboration, and the authored-resume → ATS bridge. All addable in later iterations.
+Excluded from the first slice (create/edit/save/list/delete + autosave + print export). All are planned — see roadmap below.
+
+## Post-v1 roadmap
+
+After v1 ships, continue building out the editor. **Guiding principle:** prioritize the formatting and tools actually needed to create and finalize job-hunting documents — resumes, cover/application letters, and documents that need to be signed. Pick enhancements by that lens rather than chasing full Google-Docs parity.
+
+Rough priority order (highest job-hunting value first):
+
+1. **Fonts & font-size** — typography matters most for resumes/letters; pick a small curated, ATS-safe font set rather than an exhaustive list.
+2. **Page layout** — page size (Letter/A4), margins, and a paged "document" canvas so what you edit matches what prints. High value for resumes/letters.
+3. **Signature support** — insert a signature into a document to "sign" it (upload or draw an image, placed inline). Directly serves the "documents you sign during applications" case.
+4. **Images** — letterheads, logos, profile photos, signature images (shared with #3).
+5. **Text color & highlight** — light formatting polish.
+6. **Tables** — structured resume sections / contact blocks.
+7. **Find & replace** — editing convenience on longer documents.
+8. **Templates** — starter resume / cover-letter templates to speed up creation (strong job-hunting value; can be slotted earlier if desired).
+9. **Enhanced export** — DOCX export and/or better-fidelity PDF beyond the v1 browser print.
+10. **Comments** — feedback/review on a draft.
+11. **Real-time collaboration** — heaviest; last. Needs a sync backend (e.g. Yjs); only if there's a clear use case.
+
+Also deferred: the authored-resume → ATS bridge (snapshot an authored resume into the existing `ResumeAnalysis` flow).
+
+Each roadmap item gets its own brainstorm → spec → plan cycle when its turn comes; this list records intent and ordering, not committed v2 scope.
