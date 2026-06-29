@@ -34,6 +34,110 @@ tests/
 - **Swappable storage** — a `save/createReadStream/remove` interface backs both local disk (dev) and S3-compatible object storage (prod, e.g. Supabase/R2) so uploads survive an ephemeral-disk host. Chosen by one env var; no caller changes.
 - **Per-user isolation** — every query is scoped to the authenticated user; tests assert one user can’t read/modify another’s data.
 
+## Data model
+
+Generated from [`prisma/schema.prisma`](./prisma/schema.prisma). Every record is owned by a `User`; `Application` is the hub that ties companies, interviews, contacts, documents, activity, and AI analyses together. `ApplicationContact` and `ApplicationDocument` are explicit many-to-many join tables.
+
+```mermaid
+erDiagram
+    USER ||--o{ REFRESH_TOKEN : has
+    USER ||--o{ COMPANY : owns
+    USER ||--o{ APPLICATION : owns
+    USER ||--o{ INTERVIEW : owns
+    USER ||--o{ CONTACT : owns
+    USER ||--o{ DOCUMENT : owns
+    USER ||--o{ ACTIVITY_LOG : owns
+    USER ||--o{ RESUME_ANALYSIS : owns
+
+    COMPANY |o--o{ APPLICATION : "listed under"
+    COMPANY |o--o{ CONTACT : "works at"
+
+    APPLICATION ||--o{ INTERVIEW : schedules
+    APPLICATION ||--o{ APPLICATION_CONTACT : links
+    APPLICATION ||--o{ APPLICATION_DOCUMENT : links
+    APPLICATION |o--o{ ACTIVITY_LOG : logs
+    APPLICATION |o--o{ RESUME_ANALYSIS : "analyzed by"
+
+    CONTACT ||--o{ APPLICATION_CONTACT : links
+    DOCUMENT ||--o{ APPLICATION_DOCUMENT : links
+    DOCUMENT |o--o{ RESUME_ANALYSIS : "scored from"
+
+    USER {
+        string id PK
+        string email UK
+        string passwordHash
+        string name
+    }
+    COMPANY {
+        string id PK
+        string userId FK
+        string name
+        string industry
+        string website
+    }
+    APPLICATION {
+        string id PK
+        string userId FK
+        string companyId FK "nullable"
+        string position
+        enum status "Draft…Accepted"
+        enum workMode "Remote/Hybrid/On-site"
+        int salaryMin
+        int salaryMax
+    }
+    INTERVIEW {
+        string id PK
+        string applicationId FK
+        enum type
+        datetime scheduledAt
+        enum result "nullable"
+    }
+    CONTACT {
+        string id PK
+        string userId FK
+        string companyId FK "nullable"
+        string name
+        string email
+    }
+    DOCUMENT {
+        string id PK
+        string userId FK
+        enum type "Resume/CoverLetter/Other"
+        string storageKey
+        int sizeBytes
+    }
+    RESUME_ANALYSIS {
+        string id PK
+        string userId FK
+        string applicationId FK "nullable"
+        string documentId FK "nullable"
+        int atsScore
+        int matchScore
+        json report
+    }
+    ACTIVITY_LOG {
+        string id PK
+        string userId FK
+        string applicationId FK "nullable"
+        enum action
+        json metadata
+    }
+    APPLICATION_CONTACT {
+        string applicationId FK
+        string contactId FK
+    }
+    APPLICATION_DOCUMENT {
+        string applicationId FK
+        string documentId FK
+    }
+    REFRESH_TOKEN {
+        string id PK
+        string userId FK
+        string tokenHash
+        datetime expiresAt
+    }
+```
+
 ## Prerequisites
 
 - Node.js 20+
