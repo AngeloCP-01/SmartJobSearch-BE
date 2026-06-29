@@ -86,6 +86,33 @@ test("a user cannot read another user's document (404)", async () => {
   expect(res.status).toBe(404);
 });
 
+test("a user cannot PATCH another user's document (404)", async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const created = await agent().post('/api/authored-documents').set(auth(a.token)).send({ title: 'Private' });
+  const res = await agent().patch(`/api/authored-documents/${created.body.id}`).set(auth(b.token))
+    .send({ title: 'Hacked' });
+  expect(res.status).toBe(404);
+});
+
+test("a user cannot DELETE another user's document (404)", async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const created = await agent().post('/api/authored-documents').set(auth(a.token)).send({ title: 'Private' });
+  const res = await agent().delete(`/api/authored-documents/${created.body.id}`).set(auth(b.token));
+  expect(res.status).toBe(404);
+});
+
+test("on PATCH, an applicationId owned by another user is rejected (404)", async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const created = await agent().post('/api/authored-documents').set(auth(a.token)).send({ title: 'My Doc' });
+  const bAppId = await makeApplication(b.token);
+  const res = await agent().patch(`/api/authored-documents/${created.body.id}`).set(auth(a.token))
+    .send({ applicationId: bAppId });
+  expect(res.status).toBe(404);
+});
+
 test('deletes a document', async () => {
   const { token } = await registerAndLogin();
   const created = await agent().post('/api/authored-documents').set(auth(token)).send({ title: 'Temp' });
