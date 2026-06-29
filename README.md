@@ -56,10 +56,12 @@ npm run seed                                                           # optiona
 ## Tests
 
 ```bash
-npm test    # Jest + Supertest against jobcrm_test; global setup applies migrations
+npm test    # Jest + Supertest against jobcrm_test; global setup migrates a schema per worker
 ```
 
 Every module covers happy paths, validation errors, auth requirements, and cross-user isolation. CI runs the suite against a Postgres service container on every push/PR.
+
+The suite is **parallel-safe**: each Jest worker runs against its own freshly-migrated Postgres schema (`test_w<JEST_WORKER_ID>`, provisioned in `globalSetup`), so the per-test truncations never collide across workers — no `--runInBand` needed, and it scales across cores.
 
 ## API
 
