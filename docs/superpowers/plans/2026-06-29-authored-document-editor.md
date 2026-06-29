@@ -4,7 +4,7 @@
 
 **Goal:** Add an in-app, Google-Docs-like rich-text editor so users can create/edit/format documents (resumes, cover letters, notes), autosaved to our own database, optionally linked to a job application, with browser print/PDF export.
 
-**Architecture:** New backend `authored-documents` CRUD module + Prisma `AuthoredDocument` model (content stored as TipTap/ProseMirror JSON). New frontend feature ("Writer"): a list page and a TipTap editor page with a Tailwind toolbar, debounced autosave via React Query, and print-to-PDF via CSS. The existing uploads `documents` feature is left untouched — this is a separate, parallel feature.
+**Architecture:** New backend `authored-documents` CRUD module + Prisma `AuthoredDocument` model (content stored as TipTap/ProseMirror JSON). New frontend feature ("Editor"): a list page and a TipTap editor page with a Tailwind toolbar, debounced autosave via React Query, and print-to-PDF via CSS. The existing uploads `documents` feature is left untouched — this is a separate, parallel feature.
 
 **Tech Stack:** Backend — Node/Express (CommonJS), Prisma (PostgreSQL), Zod, Jest + Supertest. Frontend — React 18, Vite, Tailwind v4, React Query v5, axios, TipTap v2, Vitest + Testing Library + MSW, Playwright.
 
@@ -25,7 +25,7 @@ These apply to **every** task (copied from the spec/conventions; exact values):
 - **Frontend React Query keys:** array convention — list `['authored-documents']`, single `['authored-document', id]`. Mutations call `qc.invalidateQueries({ queryKey: ['authored-documents'] })` on success. API error message read via `e.response?.data?.error?.message`.
 - **Frontend UI primitives:** reuse `src/components/Button.jsx` (variants `primary`/`subtle`/`danger`), `src/components/Spinner.jsx`, lucide-react icons, Tailwind classes (palette: sky primary, slate neutral, red danger). Focus ring: `focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`.
 - **Frontend tests:** Vitest + Testing Library + MSW. Helpers in `src/test/`: `server.js` (`server`, `API`), `utils.jsx` (`renderWithProviders`). Run one file: `npx vitest run <path>`. Whole suite: `npm run test`.
-- **Naming (provisional, user may rename):** backend model `AuthoredDocument`, enum `AuthoredDocType { Resume, CoverLetter, Note }`, route base `/authored-documents`. Frontend feature "Writer": API module `src/api/authoredDocuments.js`, pages `src/pages/Writer.jsx` (list) + `src/pages/WriterEditor.jsx` (editor), routes `/writer` and `/writer/:id`.
+- **Naming (provisional, user may rename):** backend model `AuthoredDocument`, enum `AuthoredDocType { Resume, CoverLetter, Note }`, route base `/authored-documents`. Frontend feature "Editor": API module `src/api/authoredDocuments.js`, pages `src/pages/Editor.jsx` (list) + `src/pages/EditorDocument.jsx` (editor), routes `/editor` and `/editor/:id`.
 - **No new heavy dependencies** beyond the TipTap packages listed in Task 3. Free-tier only.
 
 ---
@@ -50,12 +50,12 @@ These apply to **every** task (copied from the spec/conventions; exact values):
 - Create `src/hooks/useAutosave.js` + `src/hooks/useAutosave.test.js`
 - Create `src/components/EditorToolbar.jsx` + `src/components/EditorToolbar.test.jsx`
 - Create `src/components/DocumentEditor.jsx`
-- Create `src/pages/Writer.jsx` + `src/pages/Writer.test.jsx`
-- Create `src/pages/WriterEditor.jsx` + `src/pages/WriterEditor.test.jsx`
+- Create `src/pages/Editor.jsx` + `src/pages/Editor.test.jsx`
+- Create `src/pages/EditorDocument.jsx` + `src/pages/EditorDocument.test.jsx`
 - Modify `src/App.jsx` — lazy-import + add the two routes.
-- Modify `src/components/Layout.jsx` — add a "Writer" nav link.
+- Modify `src/components/Layout.jsx` — add a "Editor" nav link.
 - Modify `src/index.css` — add `@media print` rules.
-- Create `e2e/writer.spec.js` (optional smoke).
+- Create `e2e/editor.spec.js` (optional smoke).
 
 **Prerequisite for backend tasks:** a reachable PostgreSQL. Tests use isolated per-worker schemas via `.env.test` (already configured). For `npm run migrate` you need a dev database running (e.g. `docker compose up -d db` per the repo's compose file) and `DATABASE_URL` set.
 
@@ -841,18 +841,18 @@ git commit -m "feat(fe): TipTap editor and formatting toolbar"
 ## Task 7: Editor page (load, autosave, print) + route
 
 **Files:**
-- Create: `src/pages/WriterEditor.jsx`
-- Test: `src/pages/WriterEditor.test.jsx`
+- Create: `src/pages/EditorDocument.jsx`
+- Test: `src/pages/EditorDocument.test.jsx`
 - Modify: `src/App.jsx`
 - Modify: `src/index.css`
 
 **Interfaces:**
 - Consumes: `getAuthoredDocument`, `updateAuthoredDocument` (Task 4); `useAutosave` (Task 5); `<DocumentEditor>` (Task 6); route param `:id` via react-router `useParams`.
-- Produces: page at `/writer/:id` that loads a doc, edits title (input) + body (editor), autosaves both, shows a `Saving… / Saved` status, and a "Print / Save as PDF" button that calls `window.print()`.
+- Produces: page at `/editor/:id` that loads a doc, edits title (input) + body (editor), autosaves both, shows a `Saving… / Saved` status, and a "Print / Save as PDF" button that calls `window.print()`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/pages/WriterEditor.test.jsx`:
+Create `src/pages/EditorDocument.test.jsx`:
 
 ```javascript
 import { http, HttpResponse } from 'msw';
@@ -861,7 +861,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { server, API } from '../test/server';
-import WriterEditor from './WriterEditor';
+import EditorDocument from './EditorDocument';
 
 const DOC = {
   id: 'doc1', title: 'My Resume', type: 'Resume', applicationId: null,
@@ -872,9 +872,9 @@ function renderEditor() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/writer/doc1']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MemoryRouter initialEntries={['/editor/doc1']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
-          <Route path="/writer/:id" element={<WriterEditor />} />
+          <Route path="/editor/:id" element={<EditorDocument />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -921,12 +921,12 @@ test('print button calls window.print', async () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npx vitest run src/pages/WriterEditor.test.jsx`
-Expected: FAIL — cannot resolve `./WriterEditor`.
+Run: `npx vitest run src/pages/EditorDocument.test.jsx`
+Expected: FAIL — cannot resolve `./EditorDocument`.
 
 - [ ] **Step 3: Write the editor page**
 
-Create `src/pages/WriterEditor.jsx`:
+Create `src/pages/EditorDocument.jsx`:
 
 ```jsx
 import { useEffect, useState } from 'react';
@@ -939,7 +939,7 @@ import DocumentEditor from '../components/DocumentEditor';
 import Button from '../components/Button';
 import Spinner from '../components/Spinner';
 
-export default function WriterEditor() {
+export default function EditorDocument() {
   const { id } = useParams();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState(null);
@@ -979,7 +979,7 @@ export default function WriterEditor() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <Link to="/writer" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+        <Link to="/editor" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft size={16} aria-hidden="true" /> Back
         </Link>
         <div className="flex items-center gap-3">
@@ -1028,44 +1028,44 @@ In `src/index.css`, append:
 In `src/App.jsx`, add a lazy import next to the other lazy page imports:
 
 ```jsx
-const WriterEditor = lazy(() => import('./pages/WriterEditor'));
+const EditorDocument = lazy(() => import('./pages/EditorDocument'));
 ```
 
 And add the route inside the authenticated `<Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>` block:
 
 ```jsx
-<Route path="/writer/:id" element={<WriterEditor />} />
+<Route path="/editor/:id" element={<EditorDocument />} />
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
 
-Run: `npx vitest run src/pages/WriterEditor.test.jsx`
+Run: `npx vitest run src/pages/EditorDocument.test.jsx`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/pages/WriterEditor.jsx src/pages/WriterEditor.test.jsx src/App.jsx src/index.css
+git add src/pages/EditorDocument.jsx src/pages/EditorDocument.test.jsx src/App.jsx src/index.css
 git commit -m "feat(fe): authored-document editor page with autosave and print"
 ```
 
 ---
 
-## Task 8: Writer list page + route + nav link
+## Task 8: Editor list page + route + nav link
 
 **Files:**
-- Create: `src/pages/Writer.jsx`
-- Test: `src/pages/Writer.test.jsx`
+- Create: `src/pages/Editor.jsx`
+- Test: `src/pages/Editor.test.jsx`
 - Modify: `src/App.jsx`
 - Modify: `src/components/Layout.jsx`
 
 **Interfaces:**
 - Consumes: `listAuthoredDocuments`, `createAuthoredDocument`, `deleteAuthoredDocument` (Task 4); `useNavigate` for routing to the editor after create.
-- Produces: page at `/writer` listing the user's authored documents (title, type, updated), a "New document" control (choose type + title, creates then navigates to `/writer/:id`), delete, plus loading/empty/error states.
+- Produces: page at `/editor` listing the user's authored documents (title, type, updated), a "New document" control (choose type + title, creates then navigates to `/editor/:id`), delete, plus loading/empty/error states.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/pages/Writer.test.jsx`:
+Create `src/pages/Editor.test.jsx`:
 
 ```javascript
 import { http, HttpResponse } from 'msw';
@@ -1074,7 +1074,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { server, API } from '../test/server';
-import Writer from './Writer';
+import Editor from './Editor';
 
 const DOCS = [
   { id: 'd1', title: 'Backend Resume', type: 'Resume', applicationId: null, updatedAt: '2026-06-20T10:00:00Z' },
@@ -1086,7 +1086,7 @@ function renderPage() {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Writer />
+        <Editor />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -1144,12 +1144,12 @@ test('shows an error state when the request fails', async () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npx vitest run src/pages/Writer.test.jsx`
-Expected: FAIL — cannot resolve `./Writer`.
+Run: `npx vitest run src/pages/Editor.test.jsx`
+Expected: FAIL — cannot resolve `./Editor`.
 
 - [ ] **Step 3: Write the list page**
 
-Create `src/pages/Writer.jsx`:
+Create `src/pages/Editor.jsx`:
 
 ```jsx
 import { useState } from 'react';
@@ -1167,7 +1167,7 @@ const TYPE_STYLE = {
   Note: 'bg-slate-100 text-slate-600',
 };
 
-export default function Writer() {
+export default function Editor() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
@@ -1184,7 +1184,7 @@ export default function Writer() {
     onSuccess: (doc) => {
       setTitle(''); setError(null);
       qc.invalidateQueries({ queryKey: ['authored-documents'] });
-      navigate(`/writer/${doc.id}`);
+      navigate(`/editor/${doc.id}`);
     },
     onError: (e) => setError(e.response?.data?.error?.message || 'Could not create document'),
   });
@@ -1196,7 +1196,7 @@ export default function Writer() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-5 text-2xl font-bold text-slate-900">Writer</h1>
+      <h1 className="mb-5 text-2xl font-bold text-slate-900">Editor</h1>
 
       <form
         className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-sky-100 bg-white p-4 shadow-sm"
@@ -1248,7 +1248,7 @@ export default function Writer() {
             <li key={d.id} className="flex items-center justify-between rounded-xl border border-sky-100 bg-white px-4 py-3 shadow-sm">
               <button
                 type="button"
-                onClick={() => navigate(`/writer/${d.id}`)}
+                onClick={() => navigate(`/editor/${d.id}`)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <FileText size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
@@ -1256,7 +1256,7 @@ export default function Writer() {
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${TYPE_STYLE[d.type]}`}>{TYPE_LABEL[d.type]}</span>
               </button>
               <div className="flex shrink-0 items-center gap-1">
-                <Button variant="subtle" aria-label={`Edit ${d.title}`} onClick={() => navigate(`/writer/${d.id}`)}><Pencil size={16} /></Button>
+                <Button variant="subtle" aria-label={`Edit ${d.title}`} onClick={() => navigate(`/editor/${d.id}`)}><Pencil size={16} /></Button>
                 <Button
                   variant="danger"
                   aria-label={`Delete ${d.title}`}
@@ -1277,13 +1277,13 @@ export default function Writer() {
 In `src/App.jsx`, add the lazy import:
 
 ```jsx
-const Writer = lazy(() => import('./pages/Writer'));
+const Editor = lazy(() => import('./pages/Editor'));
 ```
 
-And add the route inside the authenticated block (next to the `/writer/:id` route from Task 7):
+And add the route inside the authenticated block (next to the `/editor/:id` route from Task 7):
 
 ```jsx
-<Route path="/writer" element={<Writer />} />
+<Route path="/editor" element={<Editor />} />
 ```
 
 - [ ] **Step 5: Add the sidebar nav link**
@@ -1291,8 +1291,8 @@ And add the route inside the authenticated block (next to the `/writer/:id` rout
 Open `src/components/Layout.jsx`. Locate the existing navigation links (there is a `NavLink` to `/documents` labelled "Documents"). Add a new link mirroring its exact structure/classes, using the `PenLine` icon from lucide-react:
 
 ```jsx
-<NavLink to="/writer" className={/* copy the className/active logic used by the sibling links */}>
-  <PenLine size={18} aria-hidden="true" /> Writer
+<NavLink to="/editor" className={/* copy the className/active logic used by the sibling links */}>
+  <PenLine size={18} aria-hidden="true" /> Editor
 </NavLink>
 ```
 
@@ -1300,7 +1300,7 @@ Add `PenLine` to the existing `lucide-react` import in that file. (Match whateve
 
 - [ ] **Step 6: Run the list-page test to verify it passes**
 
-Run: `npx vitest run src/pages/Writer.test.jsx`
+Run: `npx vitest run src/pages/Editor.test.jsx`
 Expected: PASS.
 
 - [ ] **Step 7: Run the full frontend suite (no regressions)**
@@ -1311,8 +1311,8 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/pages/Writer.jsx src/pages/Writer.test.jsx src/App.jsx src/components/Layout.jsx
-git commit -m "feat(fe): Writer list page, route, and nav link"
+git add src/pages/Editor.jsx src/pages/Editor.test.jsx src/App.jsx src/components/Layout.jsx
+git commit -m "feat(fe): Editor list page, route, and nav link"
 ```
 
 ---
@@ -1320,7 +1320,7 @@ git commit -m "feat(fe): Writer list page, route, and nav link"
 ## Task 9 (optional): End-to-end smoke test
 
 **Files:**
-- Create: `e2e/writer.spec.js`
+- Create: `e2e/editor.spec.js`
 
 **Interfaces:**
 - Consumes: the running app (the demo/auth flow used by existing e2e in `e2e/smoke.spec.js`).
@@ -1328,7 +1328,7 @@ git commit -m "feat(fe): Writer list page, route, and nav link"
 
 - [ ] **Step 1: Write the e2e test**
 
-Create `e2e/writer.spec.js` (adapt the auth/demo entry to match `e2e/smoke.spec.js` — e.g. "Try the live demo"):
+Create `e2e/editor.spec.js` (adapt the auth/demo entry to match `e2e/smoke.spec.js` — e.g. "Try the live demo"):
 
 ```javascript
 import { test, expect } from '@playwright/test';
@@ -1338,7 +1338,7 @@ test('create, edit, and persist an authored document', async ({ page }) => {
   await page.getByRole('button', { name: /try the live demo/i }).first().click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
-  await page.goto('/writer');
+  await page.goto('/editor');
   await page.getByLabel(/new document title/i).fill('E2E Résumé');
   await page.getByRole('button', { name: /create document/i }).click();
 
@@ -1361,7 +1361,7 @@ Expected: PASS (requires the frontend dev server + backend running and the demo 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add e2e/writer.spec.js
+git add e2e/editor.spec.js
 git commit -m "test(e2e): authored-document create/edit/persist smoke"
 ```
 
@@ -1381,6 +1381,6 @@ git commit -m "test(e2e): authored-document create/edit/persist smoke"
 
 **Placeholder scan:** No TBD/TODO; every code step contains full code. The only "match the existing pattern" instruction is the Layout nav link (Task 8 Step 5), which is intentional because the exact sibling classes live in a file the implementer will read — concrete icon, label, route, and import are specified.
 
-**Type/name consistency:** `AuthoredDocument`/`AuthoredDocType`, route `/authored-documents`, enum values `Resume|CoverLetter|Note`, API fns `list/get/create/update/deleteAuthoredDocument`, query keys `['authored-documents']` / `['authored-document', id]`, routes `/writer` + `/writer/:id`, components `DocumentEditor`/`EditorToolbar`, hook `useAutosave` — used identically across all tasks. ✓
+**Type/name consistency:** `AuthoredDocument`/`AuthoredDocType`, route `/authored-documents`, enum values `Resume|CoverLetter|Note`, API fns `list/get/create/update/deleteAuthoredDocument`, query keys `['authored-documents']` / `['authored-document', id]`, routes `/editor` + `/editor/:id`, components `DocumentEditor`/`EditorToolbar`, hook `useAutosave` — used identically across all tasks. ✓
 
 **Known risk noted:** TipTap in jsdom — mitigated by polyfills (Task 3) and by keeping the truly DOM-dependent round-trip (typing → persist) in the Playwright e2e (Task 9) rather than jsdom.
