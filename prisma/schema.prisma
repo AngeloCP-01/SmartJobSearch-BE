@@ -54,6 +54,12 @@ enum ActivityAction {
   ContactLinked
 }
 
+enum AuthoredDocType {
+  Resume
+  CoverLetter
+  Note
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -68,6 +74,7 @@ model User {
   activityLogs  ActivityLog[]
   resumeAnalyses ResumeAnalysis[]
   refreshTokens RefreshToken[]
+  authoredDocuments AuthoredDocument[]
 }
 
 model RefreshToken {
@@ -119,6 +126,7 @@ model Application {
   interviews      Interview[]
   contactLinks    ApplicationContact[]
   documentLinks   ApplicationDocument[]
+  authoredDocuments AuthoredDocument[]
   activityLogs    ActivityLog[]
   resumeAnalyses  ResumeAnalysis[]
 
@@ -193,6 +201,22 @@ model Document {
   resumeAnalyses   ResumeAnalysis[]
 
   @@index([userId])
+}
+
+model AuthoredDocument {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  type          AuthoredDocType @default(Note)
+  content       Json
+  applicationId String?
+  application   Application?    @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([applicationId])
 }
 
 model ApplicationDocument {
