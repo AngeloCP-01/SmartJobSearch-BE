@@ -1,7 +1,7 @@
 {
-  "name": "smart-job-search-crm-be",
+  "name": "jobtrail-be",
   "version": "1.0.0",
-  "description": "Smart Job Search CRM backend API (v1)",
+  "description": "JobTrail backend API (v1)",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",

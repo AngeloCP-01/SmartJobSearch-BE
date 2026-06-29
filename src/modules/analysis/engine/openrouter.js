@@ -96,8 +96,8 @@ async function chat(model, { messages, responseFormat, temperature = 0, maxToken
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://smart-job-search-crm.local',
-          'X-Title': 'Smart Job Search CRM',
+          'HTTP-Referer': 'https://jobtrail.local',
+          'X-Title': 'JobTrail',
         },
         body: JSON.stringify(body),
       });

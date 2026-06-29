@@ -36,7 +36,7 @@ async function fetchPosting(url) {
     const res = await fetch(url, {
       signal: controller.signal,
       redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SmartJobSearchCRM/1.0)', Accept: 'text/html' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JobTrail/1.0)', Accept: 'text/html' },
     });
     if (!res.ok) throw new ValidationError(`Couldn't fetch that URL (HTTP ${res.status}) — many job sites block automated access. Paste the posting text instead.`);
     const text = htmlToText(await res.text());
