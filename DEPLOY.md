@@ -1,12 +1,12 @@
-# Deploying SmartJobSearch (free tier)
+# Deploying JobTrail (free tier)
 
-> **Live since 2026-06-25.**
+> **Live since 2026-06-25.** Rebranded to **JobTrail** and moved the frontend to `jobtrail-hq.vercel.app` on 2026-06-29 (old `smart-job-search-fe.vercel.app` kept as a redirect).
 > - Frontend: `https://jobtrail-hq.vercel.app` (Vercel)
 > - API: `https://smartjobsearch-api.onrender.com/api` (Render free) — health: `/api/health`
 > - DB: Neon Postgres · Uploads: Supabase Storage bucket `job_search_documents`
 >
-> **Two gotchas that bit us (don't repeat):**
-> 1. **`CORS_ORIGIN` must be the bare origin** `https://jobtrail-hq.vercel.app` — scheme + host only. It was first set to `…/login` (with a path); a browser's `Origin` header has no path, so it never matched and every request was CORS-blocked (registration silently failed).
+> **Gotchas that bit us (don't repeat):**
+> 1. **`CORS_ORIGIN` must exactly equal the browser's `Origin`** — `https://jobtrail-hq.vercel.app`, scheme + host only. The server returns this one fixed string as `Access-Control-Allow-Origin`, so any mismatch silently CORS-blocks every request (registration just fails). Two ways we got bitten: (a) a trailing path (`…/login`) — a browser's `Origin` has no path; (b) a typo'd single slash (`https:/…`) — it must be `https://` with two. Renaming the Vercel *project* does **not** change the `.vercel.app` URL — only adding a domain under Settings → Domains does.
 > 2. **`NODE_ENV` must be lowercase `production`** — the code checks `=== 'production'`. `"PRODUCTION"` leaves the cookie at `SameSite=Lax` (not sent cross-site) and `trust proxy` off.
 
 
