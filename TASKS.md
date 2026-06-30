@@ -15,6 +15,8 @@ Master coordination: `../TASKS.md`
 > **Update (2026-06-30):** **V3-6 — Editor v2 (Typography & Page Layout)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-06-29-editor-v2-typography-page-layout…`), merged to `main`. No backend code/migration. Implementation + 170 tests in `SmartJobSearchCRM-FE`.
 >
 > **Update (2026-06-30):** **V3-7 — Editor v3 (Tables & Find/Replace)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-06-30-editor-v3-tables-findreplace…`), merged to `main`. No backend code/migration. Implementation + 184 tests in `SmartJobSearchCRM-FE`. **Heads-up:** the next editor batch (V4 — images) WILL need this repo — a public-URL/storage capability for `<img src>` (new `getPublicUrl` + public bucket/image endpoint). See `TRACKER.md` Notes.
+>
+> **Update (2026-06-30):** **V3-8 — Editor v4 (Images)** done, reviewed, **merged to local `main` (NOT pushed)**. New `Image` model + migration + an `images` module: auth'd `POST /api/images` and an **unauthenticated** `GET /api/images/:id` public serve (private storage, by UUID, `nosniff`, no public bucket). New `PUBLIC_API_URL` env (required in prod — see `DEPLOY.md`). **193 tests.** Frontend in `SmartJobSearchCRM-FE` (190 tests). **Before deploy:** set `PUBLIC_API_URL` on Render (the `add_image` migration runs on deploy). Spec/plan: `docs/superpowers/…editor-v4-images…`. See `TRACKER.md` Notes.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
