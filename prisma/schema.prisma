@@ -75,6 +75,7 @@ model User {
   resumeAnalyses ResumeAnalysis[]
   refreshTokens RefreshToken[]
   authoredDocuments AuthoredDocument[]
+  images        Image[]
 }
 
 model RefreshToken {
@@ -260,4 +261,16 @@ model ResumeAnalysis {
   createdAt     DateTime     @default(now())
 
   @@index([userId, createdAt])
+}
+
+model Image {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storageKey String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
