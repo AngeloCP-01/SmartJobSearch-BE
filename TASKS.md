@@ -11,6 +11,8 @@ Master coordination: `../TASKS.md`
 > **Update (2026-06-26):** **BE-6 deploy done** — API live on Render + Neon + Supabase (`DEPLOY.md`). Plus a portfolio-readiness pass: **demo seed** (`prisma/seed.js`, seeded to prod), **keep-alive** + **CI** GitHub Actions, and a rewritten portfolio README. Then AI features: **cover-letter generator** + **job-posting auto-import** (`postings` module). Fixed the serial-suite test-DB flake (`connection_limit=1`). Tests **170 passing / 1 skipped — reliably green in CI**. See `TRACKER.md` Notes.
 >
 > **Update (2026-06-29):** **V3-5 — In-app document editor (BE)** done, reviewed, **PR #1 merged to `main` (CI-green)**. New `authored-documents` CRUD module + `AuthoredDocument` model/migration for rich-text docs authored in-app (separate from the V3-1 uploads module). `userId`-scoped, ownership enforced on read+write, list omits `content`, optional application link. **188 tests** (full suite green). Spec/plan: `docs/superpowers/{specs,plans}/2026-06-29-authored-document-editor*.md`. See `TRACKER.md` Notes.
+>
+> **Update (2026-06-30):** **V3-6 — Editor v2 (Typography & Page Layout)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-06-29-editor-v2-typography-page-layout…`), merged to `main`. No backend code/migration. Implementation + 170 tests in `SmartJobSearchCRM-FE`.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
