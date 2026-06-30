@@ -11,6 +11,7 @@ async function resetDb() {
   await prisma.contact.deleteMany();
   await prisma.document.deleteMany();
   await prisma.company.deleteMany();
+  await prisma.image.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
 }

@@ -69,6 +69,7 @@ The repo includes **`render.yaml`** (a Blueprint), so the service + env keys are
    - `DATABASE_URL` → the Neon pooled string from step 1.
    - `CORS_ORIGIN` → your Vercel URL from step 4 (you can put a placeholder now and fix it after step 4 — e.g. `https://smartjobsearch.vercel.app`). **No trailing slash.**
    - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` (`documents`), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` → from step 2.
+   - `PUBLIC_API_URL` → **required for editor images.** The API's own public base incl. `/api`, e.g. `https://smartjobsearch-api.onrender.com/api`. Used to build absolute `<img>` URLs for in-editor images. If unset it falls back to the request host header (works locally, but set it explicitly in prod so image URLs are stable and not derived from a client-controlled `Host`).
    - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` → optional (leave blank to keep résumé analysis deterministic).
    - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` → leave to **auto-generate** (declared `generateValue: true`).
    - `STORAGE_DRIVER` is already `s3`; `NODE_ENV` is already `production`.
