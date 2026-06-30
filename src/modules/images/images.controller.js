@@ -21,6 +21,7 @@ async function serve(req, res, next) {
     const stream = storage.createReadStream(image.storageKey);
     stream.on('open', () => {
       res.setHeader('Content-Type', image.mimeType);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     });
     stream.on('error', (err) => {

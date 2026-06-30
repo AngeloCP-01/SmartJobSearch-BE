@@ -49,6 +49,7 @@ test('serves the image bytes publicly (no auth) with the right content-type', as
   const res = await agent().get(`/api/images/${up.body.id}`); // no auth header
   expect(res.status).toBe(200);
   expect(res.headers['content-type']).toContain('image/png');
+  expect(res.headers['x-content-type-options']).toBe('nosniff');
   expect(Buffer.from(res.body).equals(PNG)).toBe(true);
 });
 
