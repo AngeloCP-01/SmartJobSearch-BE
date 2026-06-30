@@ -13,6 +13,8 @@ Master coordination: `../TASKS.md`
 > **Update (2026-06-29):** **V3-5 — In-app document editor (BE)** done, reviewed, **PR #1 merged to `main` (CI-green)**. New `authored-documents` CRUD module + `AuthoredDocument` model/migration for rich-text docs authored in-app (separate from the V3-1 uploads module). `userId`-scoped, ownership enforced on read+write, list omits `content`, optional application link. **188 tests** (full suite green). Spec/plan: `docs/superpowers/{specs,plans}/2026-06-29-authored-document-editor*.md`. See `TRACKER.md` Notes.
 >
 > **Update (2026-06-30):** **V3-6 — Editor v2 (Typography & Page Layout)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-06-29-editor-v2-typography-page-layout…`), merged to `main`. No backend code/migration. Implementation + 170 tests in `SmartJobSearchCRM-FE`.
+>
+> **Update (2026-06-30):** **V3-7 — Editor v3 (Tables & Find/Replace)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-06-30-editor-v3-tables-findreplace…`), merged to `main`. No backend code/migration. Implementation + 184 tests in `SmartJobSearchCRM-FE`. **Heads-up:** the next editor batch (V4 — images) WILL need this repo — a public-URL/storage capability for `<img src>` (new `getPublicUrl` + public bucket/image endpoint). See `TRACKER.md` Notes.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
