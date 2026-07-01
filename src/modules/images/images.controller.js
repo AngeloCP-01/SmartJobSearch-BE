@@ -2,6 +2,8 @@ const service = require('./images.service');
 const storage = require('../../shared/storage');
 const { ValidationError } = require('../../shared/utils/errors');
 
+const DBG = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test'; // temporary editor-image debug logging (dev only)
+
 function imageUrl(req, id) {
   const base = (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}/api`).replace(/\/$/, '');
   return `${base}/images/${id}`;
@@ -11,7 +13,9 @@ async function create(req, res, next) {
   try {
     if (!req.file) throw new ValidationError('No file uploaded');
     const image = await service.create(req.userId, req.file);
-    res.status(201).json({ id: image.id, url: imageUrl(req, image.id) });
+    const url = imageUrl(req, image.id);
+    if (DBG) console.log(`[editor-debug] image uploaded id=${image.id} type=${image.mimeType} bytes=${image.sizeBytes} url=${url}`);
+    res.status(201).json({ id: image.id, url });
   } catch (e) { next(e); }
 }
 
