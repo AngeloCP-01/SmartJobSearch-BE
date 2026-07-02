@@ -19,6 +19,12 @@ Master coordination: `../TASKS.md`
 > **Update (2026-06-30):** **V3-8 — Editor v4 (Images)** done, reviewed, **merged to local `main` (NOT pushed)**. New `Image` model + migration + an `images` module: auth'd `POST /api/images` and an **unauthenticated** `GET /api/images/:id` public serve (private storage, by UUID, `nosniff`, no public bucket). New `PUBLIC_API_URL` env (required in prod — see `DEPLOY.md`). **193 tests.** Frontend in `SmartJobSearchCRM-FE` (190 tests). **Before deploy:** set `PUBLIC_API_URL` on Render (the `add_image` migration runs on deploy). Spec/plan: `docs/superpowers/…editor-v4-images…`. See `TRACKER.md` Notes.
 >
 > **Update (2026-07-01):** added dev-only `[editor-debug]` logging (authored-documents PATCH/GET image-node counts + image upload); it proved the image-"not saving" bug was a client-side stale React Query cache (fixed in the FE), not a server bug. Logging kept. **Next task:** a comprehensive request logger (all API calls, success + error, with the error message).
+>
+> **Update (2026-07-01):** **V3-9 — Editor v5 (Image selection & free-resize)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-07-01-editor-image-selection-resize…`), merged to `main` and **pushed**. No backend code/migration. Implementation + 200 tests in `SmartJobSearchCRM-FE`.
+>
+> **Update (2026-07-02):** **V3-10 — Editor v6 (Image text-wrapping, drag positioning & free placement)** is **frontend-only**; this repo carries only the spec + plan (`docs/superpowers/…2026-07-01-editor-image-text-wrapping…`, `…2026-07-01-editor-image-drag-positioning…`, `…2026-07-02-editor-image-free-placement-labels…`), merged to `main` and **pushed**. Delivers the long-deferred v5 floating behind/in-front-of-text signature overlay. No backend code/migration. Implementation + 221 tests in `SmartJobSearchCRM-FE`.
+>
+> **Update (2026-07-02):** **V3-11 — Cover Letter: Edit in Editor** is **frontend-only, no backend changes** (a cover-letter integration, not an editor version); this repo carries only the spec + plan (`docs/superpowers/…2026-07-02-cover-letter-edit-in-editor…`), merged to `main` and **pushed**. Reuses the existing `POST /authored-documents`. Implementation + 225 tests in `SmartJobSearchCRM-FE`.
 
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
