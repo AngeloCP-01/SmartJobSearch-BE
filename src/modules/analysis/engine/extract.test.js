@@ -6,13 +6,11 @@ const PDF = 'application/pdf';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const fixture = (name) => fs.readFileSync(path.join(__dirname, '../../../../tests/fixtures', name));
 
-// NOTE: skipped under Jest only. pdf-parse v2 wraps modern pdf.js (ESM + a
-// worker/loading task) that fails to initialize inside Jest's
-// `--experimental-vm-modules` sandbox — it returns ok:false here. The code path
-// is verified to work in real Node (the deployed AI analysis parses uploaded
-// PDFs fine, and `node -e "extractText(resume.pdf)"` extracts the text). DOCX
-// extraction and the failure paths below are covered normally.
-test.skip('extracts text from a PDF résumé (pdf.js not runnable under jest vm-modules)', async () => {
+// Runs under Jest's `--experimental-vm-modules` sandbox with pdf-parse v2
+// (modern pdf.js). An earlier pdf-parse version failed to initialize its
+// worker/loading task inside this sandbox and returned ok:false, so this was
+// skipped; ^2.4.5 initializes correctly here, matching real-Node behavior.
+test('extracts text from a PDF résumé', async () => {
   const r = await extractText(fixture('resume.pdf'), PDF);
   expect(r.ok).toBe(true);
   expect(r.text.toLowerCase()).toContain('postgresql');
