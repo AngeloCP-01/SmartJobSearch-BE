@@ -31,3 +31,11 @@ test('garbage / empty input never throws → ok:false', async () => {
   const r = await extractText(Buffer.from('not a real pdf'), PDF);
   expect(r.ok).toBe(false);
 });
+
+test('extracts raw text from a markdown file', async () => {
+  const md = Buffer.from('# Backend Engineer\n\nExperienced with **Node.js** and PostgreSQL.');
+  const r = await extractText(md, 'text/markdown');
+  expect(r.ok).toBe(true);
+  expect(r.text).toContain('# Backend Engineer');
+  expect(r.text).toContain('**Node.js**');
+});
