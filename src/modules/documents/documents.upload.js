@@ -6,6 +6,8 @@ const ALLOWED = new Set([
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/plain', // e.g. an AI-generated cover letter saved from the app
+  'text/markdown',
+  'text/x-markdown',
 ]);
 const MAX_BYTES = 5 * 1024 * 1024;
 

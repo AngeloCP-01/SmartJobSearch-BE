@@ -60,6 +60,51 @@ test('accepts a .txt upload (e.g. a saved cover letter)', async () => {
   expect(res.body).toMatchObject({ name: 'Cover Letter', type: 'CoverLetter', mimeType: 'text/plain' });
 });
 
+test('accepts a markdown upload', async () => {
+  const { token } = await registerAndLogin();
+  const res = await upload(token, {
+    name: 'Notes', type: 'Other',
+    buf: Buffer.from('# Notes\n\nsome content'), filename: 'notes.md', contentType: 'text/markdown',
+  });
+  expect(res.status).toBe(201);
+  expect(res.body).toMatchObject({ mimeType: 'text/markdown' });
+});
+
+test('GET /:id/text returns extracted text for a markdown document', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token, {
+    name: 'Notes', type: 'Other',
+    buf: Buffer.from('# Backend Engineer\n\nNode.js and PostgreSQL experience.'),
+    filename: 'notes.md', contentType: 'text/markdown',
+  });
+  const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(token));
+  expect(res.status).toBe(200);
+  expect(res.body.ok).toBe(true);
+  expect(res.body.text).toContain('# Backend Engineer');
+});
+
+test('GET /:id/text returns ok:false for an unparseable document', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token); // the fake PDF buffer can't be parsed
+  const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(token));
+  expect(res.status).toBe(200);
+  expect(res.body.ok).toBe(false);
+  expect(res.body.text).toBe('');
+});
+
+test('GET /:id/text is 404 for another user\'s document', async () => {
+  const a = await registerAndLogin();
+  const b = await registerAndLogin();
+  const created = await upload(a.token, { buf: Buffer.from('# x\n\ncontent here'), filename: 'x.md', contentType: 'text/markdown' });
+  const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(b.token));
+  expect(res.status).toBe(404);
+});
+
+test('GET /:id/text requires authentication (401)', async () => {
+  const res = await agent().get('/api/documents/some-id/text');
+  expect(res.status).toBe(401);
+});
+
 test('rejects a file over 5MB (400)', async () => {
   const { token } = await registerAndLogin();
   const big = Buffer.alloc(5 * 1024 * 1024 + 1, 1);
