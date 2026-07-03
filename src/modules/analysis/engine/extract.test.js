@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const { extractText, extractRich } = require('./extract');
+const JSZip = require('jszip');
+const { extractText, extractRich, extractDocxHeader } = require('./extract');
 
 const PDF = 'application/pdf';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -68,5 +69,42 @@ describe('extractRich', () => {
   test('legacy .doc / unknown → ok:false with kind:text', async () => {
     const r = await extractRich(Buffer.from('whatever'), 'application/msword');
     expect(r).toEqual({ ok: false, kind: 'text', content: '' });
+  });
+});
+
+// Word puts some résumé contact blocks in the page header, which mammoth drops.
+describe('extractDocxHeader', () => {
+  const docxWith = async (files) => {
+    const zip = new JSZip();
+    zip.file('word/document.xml', '<w:document/>');
+    Object.entries(files).forEach(([name, xml]) => zip.file(name, xml));
+    return zip.generateAsync({ type: 'nodebuffer' });
+  };
+
+  test('recovers name + contact lines from the page header as HTML', async () => {
+    const buf = await docxWith({
+      'word/header1.xml':
+        '<w:hdr><w:p><w:r><w:t>Jane Doe</w:t></w:r></w:p>' +
+        '<w:p><w:r><w:t>jane@example.com</w:t></w:r></w:p></w:hdr>',
+    });
+    const html = await extractDocxHeader(buf);
+    expect(html).toMatch(/<h1>Jane Doe<\/h1>/);
+    expect(html).toContain('<p>jane@example.com</p>');
+  });
+
+  test('dedupes repeated lines across multiple header parts', async () => {
+    const hdr = '<w:hdr><w:p><w:r><w:t>Jane Doe</w:t></w:r></w:p></w:hdr>';
+    const buf = await docxWith({ 'word/header1.xml': hdr, 'word/header2.xml': hdr });
+    const html = await extractDocxHeader(buf);
+    expect(html.match(/Jane Doe/g)).toHaveLength(1);
+  });
+
+  test('no header part → empty string (no noise prepended)', async () => {
+    const buf = await docxWith({});
+    expect(await extractDocxHeader(buf)).toBe('');
+  });
+
+  test('non-docx / garbage buffer never throws → empty string', async () => {
+    expect(await extractDocxHeader(Buffer.from('not a zip'))).toBe('');
   });
 });

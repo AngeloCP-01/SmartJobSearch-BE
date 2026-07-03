@@ -24,6 +24,7 @@
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9",
+    "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
