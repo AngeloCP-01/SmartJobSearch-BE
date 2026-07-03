@@ -34,6 +34,11 @@ async function download(req, res, next) {
   } catch (e) { next(e); }
 }
 
+async function getText(req, res, next) {
+  try { res.json(await service.getText(req.userId, req.params.id)); }
+  catch (e) { next(e); }
+}
+
 async function update(req, res, next) {
   try { res.json(await service.update(req.userId, req.params.id, req.body)); }
   catch (e) { next(e); }
@@ -44,4 +49,4 @@ async function remove(req, res, next) {
   catch (e) { next(e); }
 }
 
-module.exports = { create, list, download, update, remove };
+module.exports = { create, list, download, getText, update, remove };

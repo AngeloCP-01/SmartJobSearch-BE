@@ -3,6 +3,7 @@ const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
 const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
 const activity = require('../activity/activity.service');
+const { extractText } = require('../analysis/engine/extract');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -11,6 +12,16 @@ const publicSelect = {
 };
 
 const sanitize = (name) => name.replace(/[^\w.\-]+/g, '_').slice(0, 120);
+
+function readBuffer(key) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    storage.createReadStream(key)
+      .on('data', (c) => chunks.push(c))
+      .on('end', () => resolve(Buffer.concat(chunks)))
+      .on('error', reject);
+  });
+}
 
 async function create(userId, { name, type, notes }, file) {
   const storageKey = `${userId}/${crypto.randomUUID()}-${sanitize(file.originalname)}`;
@@ -53,6 +64,12 @@ async function getForDownload(userId, id) {
   return { storageKey: doc.storageKey, mimeType: doc.mimeType, originalFilename: doc.originalFilename };
 }
 
+async function getText(userId, id) {
+  const doc = await assertDocument(userId, id);
+  const buffer = await readBuffer(doc.storageKey);
+  return extractText(buffer, doc.mimeType); // { text, ok }
+}
+
 async function update(userId, id, data) {
   await assertDocument(userId, id);
   return prisma.document.update({ where: { id }, data, select: publicSelect });
@@ -89,6 +106,6 @@ async function unlinkApplication(userId, applicationId, documentId) {
 }
 
 module.exports = {
-  create, list, publicSelect, assertDocument, getForDownload, update, remove,
+  create, list, publicSelect, assertDocument, getForDownload, getText, update, remove,
   linkApplication, unlinkApplication,
 };

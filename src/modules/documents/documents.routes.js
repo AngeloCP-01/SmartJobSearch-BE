@@ -11,6 +11,7 @@ router.use(requireAuth);
 router.get('/', ctrl.list);
 router.post('/', uploadSingle, validate(createDocumentSchema), ctrl.create);
 router.get('/:id/file', ctrl.download);
+router.get('/:id/text', ctrl.getText);
 router.patch('/:id', validate(updateDocumentSchema), ctrl.update);
 router.delete('/:id', ctrl.remove);
 
