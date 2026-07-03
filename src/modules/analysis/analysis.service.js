@@ -21,6 +21,30 @@ function readBuffer(key) {
   });
 }
 
+// Deterministic sweep over generated prose to remove the mechanical "signs of AI
+// writing" (from the humanizer skill) that a model still leaks even when the
+// prompt forbids them: em/en dashes (§14), emojis (§18), and curly quotes (§19).
+// The stylistic tells are handled in the prompt; this guarantees the surface ones.
+function humanize(text) {
+  if (!text) return text;
+  return text
+    // numeric ranges: keep "250–350" as a hyphen instead of turning it into "250, 350"
+    .replace(/(\d)\s*[—–]\s*(\d)/g, '$1-$2')
+    // em/en dash and spaced double-hyphen asides -> comma
+    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/\s+--\s+/g, ', ')
+    // curly quotes and apostrophes -> straight
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    // emoji and regional-indicator pictographs
+    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}]/gu, '')
+    // tidy up artifacts the swaps can leave behind
+    .replace(/,\s*,/g, ',')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
+
 async function run(userId, { applicationId, documentId, useAi }) {
   const application = await prisma.application.findFirst({ where: { id: applicationId, userId } });
   if (!application) throw new NotFoundError('Application not found');
@@ -148,9 +172,14 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
   const position = application.position || 'the role';
   const system = [
     'You are an expert career writer. Write a concise, professional, specific cover letter.',
-    'Use ONLY facts supported by the résumé — never invent experience, employers, or metrics.',
-    'Open with genuine interest in the role and company, map the candidate’s most relevant strengths to the job requirements, and close with a confident call to action.',
-    'About 250–350 words across 3–4 short paragraphs. Return ONLY the letter body — no preamble, no markdown, no bracketed placeholders.',
+    'Use ONLY facts supported by the resume. Never invent experience, employers, or metrics.',
+    "Open with genuine interest in the role and company, map the candidate's most relevant strengths to the job requirements, and end by proposing a concrete next step, such as a conversation about the role.",
+    'About 250 to 350 words across 3 to 4 short paragraphs. Return ONLY the letter body: no preamble, no markdown, no bracketed placeholders.',
+    // Humanizer rules (from the "Signs of AI writing" guide) so the letter does not read as machine-generated:
+    'Write like a real person, not a chatbot. Do NOT use em dashes or en dashes (use commas, periods, or parentheses instead), emojis, or curly quotes.',
+    'Avoid AI-tell vocabulary such as: passionate, thrilled, excited, delve, leverage, robust, dynamic, vibrant, seamless, tapestry, testament, showcase, foster, honed, spearheaded, elevate, resonate.',
+    'Avoid promotional filler and generic upbeat closings such as "I would be a great fit", "exciting opportunity", or "take my career to the next level". Do not force ideas into groups of three, and avoid "not only... but also" constructions.',
+    'Prefer plain verbs (is, has, did) over inflated ones, vary sentence length, and stay specific and grounded in the resume rather than effusive.',
   ].join(' ');
   const user = `COMPANY: ${companyName}\nROLE: ${position}\n\nJOB DESCRIPTION:\n${jd}\n\nCANDIDATE RÉSUMÉ:\n${resumeText}`;
 
@@ -166,7 +195,7 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
   }
 
   return {
-    coverLetter: result.text,
+    coverLetter: humanize(result.text),
     meta: { companyName, position, documentName: document.name, model: result.model },
   };
 }

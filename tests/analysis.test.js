@@ -182,6 +182,26 @@ test('generates a cover letter from a JD + résumé when AI is available', async
   delete process.env.OPENROUTER_API_KEY;
 });
 
+test('cover letter is humanized: em dashes, curly quotes, and emojis are stripped from AI output', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateTextWithFallback.mockReset();
+  generateTextWithFallback.mockResolvedValue({
+    text: 'Dear Hiring Team — I am “thrilled” 🚀 to apply for this 250–350 word role.',
+    model: 'test/model:free',
+  });
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Rust and Elixir and good communication.');
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/cover-letter').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  const letter = res.body.coverLetter;
+  expect(letter).not.toMatch(/[—–“”‘’]/);
+  expect(letter).not.toMatch(/\p{Extended_Pictographic}/u);
+  expect(letter).toContain('"thrilled"');
+  expect(letter).toContain('250-350'); // numeric range kept as a hyphen, not split
+  delete process.env.OPENROUTER_API_KEY;
+});
+
 test('cover letter requires a job description (400)', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   const { token } = await registerAndLogin();
