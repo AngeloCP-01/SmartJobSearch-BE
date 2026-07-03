@@ -139,3 +139,18 @@ describe('postProcessDocxHtml — headings', () => {
     expect(postProcessDocxHtml('not really <p html')).toBe('not really <p html');
   });
 });
+
+describe('postProcessDocxHtml — tab columns', () => {
+  test('splits a tab-separated line into a borderless two-cell table', () => {
+    const html = '<p><strong>Mobile:</strong> Android\t\t\t<strong>Databases:</strong> MySQL</p>';
+    const out = postProcessDocxHtml(html);
+    expect(out).toContain('<table class="doc-columns">');
+    expect(out).toContain('<td><strong>Mobile:</strong> Android</td>');
+    expect(out).toContain('<td><strong>Databases:</strong> MySQL</td>');
+    expect(out).not.toContain('\t');
+  });
+  test('a trailing-only tab stays a paragraph with the tab stripped', () => {
+    const out = postProcessDocxHtml('<p>Frontend: React, HTML, CSS\t</p>');
+    expect(out).toBe('<p>Frontend: React, HTML, CSS</p>');
+  });
+});

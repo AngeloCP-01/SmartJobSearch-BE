@@ -88,6 +88,17 @@ function postProcessDocxHtml(html) {
       if (SECTION_LABELS.has(normalizeLabel(inner))) {
         return `<h2 data-rule="true">${inner}</h2>`;
       }
+      const m = inner.match(/^([\s\S]*?\S)\t+([\s\S]*)$/); // first tab run w/ content on left
+      if (m) {
+        const left = m[1].trim();
+        const right = m[2].replace(/\t+/g, ' ').trim();     // fold any further tabs on the right
+        if (left && right) {
+          return `<table class="doc-columns"><tbody><tr><td>${left}</td><td>${right}</td></tr></tbody></table>`;
+        }
+      }
+      if (inner.includes('\t')) {                            // stray leading/trailing tab, no columns
+        return `<p>${inner.replace(/\t+/g, ' ').trim()}</p>`;
+      }
       return whole;
     });
   } catch {
