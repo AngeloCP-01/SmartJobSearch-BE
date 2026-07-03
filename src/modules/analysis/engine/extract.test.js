@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const JSZip = require('jszip');
-const { extractText, extractRich, extractDocxHeader } = require('./extract');
+const { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS } = require('./extract');
 
 const PDF = 'application/pdf';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -106,5 +106,18 @@ describe('extractDocxHeader', () => {
 
   test('non-docx / garbage buffer never throws → empty string', async () => {
     expect(await extractDocxHeader(Buffer.from('not a zip'))).toBe('');
+  });
+});
+
+describe('normalizeLabel', () => {
+  test('strips tags, entities, trailing colon, and lowercases', () => {
+    expect(normalizeLabel('<strong>SUMMARY </strong>')).toBe('summary');
+    expect(normalizeLabel('Technical Skills:')).toBe('technical skills');
+    expect(normalizeLabel('DevOps &amp; Testing')).toBe('devops & testing');
+  });
+  test('SECTION_LABELS holds normalized résumé sections', () => {
+    expect(SECTION_LABELS.has('summary')).toBe(true);
+    expect(SECTION_LABELS.has('experience')).toBe(true);
+    expect(SECTION_LABELS.has('technical skills')).toBe(true);
   });
 });

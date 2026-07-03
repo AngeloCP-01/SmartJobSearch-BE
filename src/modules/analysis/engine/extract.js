@@ -9,6 +9,26 @@ const MD = 'text/markdown';
 const MDX = 'text/x-markdown';
 const TXT = 'text/plain';
 
+const SECTION_LABELS = new Set([
+  'summary', 'professional summary', 'profile', 'objective', 'career objective',
+  'technical skills', 'skills', 'core competencies', 'experience', 'work experience',
+  'professional experience', 'employment history', 'projects', 'education',
+  'certifications', 'certifications & licenses', 'awards', 'achievements',
+  'publications', 'languages', 'interests', 'references', 'volunteer experience',
+  'additional information', 'contact',
+]);
+
+function normalizeLabel(html) {
+  return String(html ?? '')
+    .replace(/<[^>]+>/g, '')                 // strip tags
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim()             // collapse whitespace
+    .replace(/:$/, '')                       // drop one trailing colon
+    .trim()
+    .toLowerCase();
+}
+
 async function extractText(buffer, mimeType) {
   try {
     let text = '';
@@ -92,4 +112,4 @@ async function extractRich(buffer, mimeType) {
   }
 }
 
-module.exports = { extractText, extractRich, extractDocxHeader, MIN_CHARS };
+module.exports = { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS, MIN_CHARS };
