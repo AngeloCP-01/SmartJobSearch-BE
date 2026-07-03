@@ -16,7 +16,7 @@ const handler = multer({
   limits: { fileSize: MAX_BYTES },
   fileFilter: (req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) return cb(null, true);
-    return cb(new ValidationError('Unsupported file type', [{ path: 'file', message: 'Only PDF, DOC, DOCX, or TXT files are allowed' }]));
+    return cb(new ValidationError('Unsupported file type', [{ path: 'file', message: 'Only PDF, DOC, DOCX, TXT, or Markdown files are allowed' }]));
   },
 }).single('file');
 
