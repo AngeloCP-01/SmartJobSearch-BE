@@ -29,4 +29,34 @@ async function extractText(buffer, mimeType) {
   }
 }
 
-module.exports = { extractText, MIN_CHARS };
+// Like extractText, but preserves structure for the in-app editor:
+// DOCX → HTML (mammoth convertToHtml: headings, bold, lists), PDF/markdown/plain
+// → raw text. Returns { ok, kind, content } where kind is 'html' or 'text', so
+// the frontend knows how to turn it into editor content. Kept separate from
+// extractText because résumé keyword-analysis wants flat text, not HTML.
+async function extractRich(buffer, mimeType) {
+  try {
+    if (mimeType === PDF) {
+      const parser = new PDFParse({ data: buffer });
+      let text = '';
+      try { text = (await parser.getText()).text || ''; }
+      finally { await parser.destroy().catch(() => {}); }
+      text = text.trim();
+      return { ok: text.length >= MIN_CHARS, kind: 'text', content: text };
+    }
+    if (mimeType === DOCX) {
+      const html = (await mammoth.convertToHtml({ buffer })).value || '';
+      const textLen = html.replace(/<[^>]+>/g, '').trim().length; // measure real text, not tags
+      return { ok: textLen >= MIN_CHARS, kind: 'html', content: html };
+    }
+    if (mimeType === MD || mimeType === MDX || mimeType === TXT) {
+      const text = buffer.toString('utf8').trim();
+      return { ok: text.length >= MIN_CHARS, kind: 'text', content: text };
+    }
+    return { ok: false, kind: 'text', content: '' }; // .doc / unknown
+  } catch {
+    return { ok: false, kind: 'text', content: '' };
+  }
+}
+
+module.exports = { extractText, extractRich, MIN_CHARS };

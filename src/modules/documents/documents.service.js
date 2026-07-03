@@ -3,7 +3,7 @@ const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
 const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
 const activity = require('../activity/activity.service');
-const { extractText } = require('../analysis/engine/extract');
+const { extractRich } = require('../analysis/engine/extract');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -67,7 +67,7 @@ async function getForDownload(userId, id) {
 async function getText(userId, id) {
   const doc = await assertDocument(userId, id);
   const buffer = await readBuffer(doc.storageKey);
-  return extractText(buffer, doc.mimeType); // { text, ok }
+  return extractRich(buffer, doc.mimeType); // { ok, kind: 'html'|'text', content }
 }
 
 async function update(userId, id, data) {

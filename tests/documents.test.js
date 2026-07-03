@@ -70,7 +70,7 @@ test('accepts a markdown upload', async () => {
   expect(res.body).toMatchObject({ mimeType: 'text/markdown' });
 });
 
-test('GET /:id/text returns extracted text for a markdown document', async () => {
+test('GET /:id/text returns kind:text raw content for a markdown document', async () => {
   const { token } = await registerAndLogin();
   const created = await upload(token, {
     name: 'Notes', type: 'Other',
@@ -80,7 +80,23 @@ test('GET /:id/text returns extracted text for a markdown document', async () =>
   const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(token));
   expect(res.status).toBe(200);
   expect(res.body.ok).toBe(true);
-  expect(res.body.text).toContain('# Backend Engineer');
+  expect(res.body.kind).toBe('text');
+  expect(res.body.content).toContain('# Backend Engineer');
+});
+
+test('GET /:id/text returns kind:html with structure for a DOCX document', async () => {
+  const { token } = await registerAndLogin();
+  const created = await upload(token, {
+    name: 'Resume', type: 'Resume',
+    buf: fs.readFileSync(path.join(__dirname, 'fixtures/resume.docx')),
+    filename: 'resume.docx',
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+  const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(token));
+  expect(res.status).toBe(200);
+  expect(res.body.ok).toBe(true);
+  expect(res.body.kind).toBe('html');
+  expect(res.body.content).toMatch(/<(p|ul|li|strong|h[1-6])\b/i); // formatting preserved, not a flat wall of text
 });
 
 test('GET /:id/text returns ok:false for an unparseable document', async () => {
@@ -89,7 +105,7 @@ test('GET /:id/text returns ok:false for an unparseable document', async () => {
   const res = await agent().get(`/api/documents/${created.body.id}/text`).set(auth(token));
   expect(res.status).toBe(200);
   expect(res.body.ok).toBe(false);
-  expect(res.body.text).toBe('');
+  expect(res.body.content).toBe('');
 });
 
 test('GET /:id/text is 404 for another user\'s document', async () => {
