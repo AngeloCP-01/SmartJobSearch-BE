@@ -127,7 +127,7 @@ async function extractRich(buffer, mimeType) {
     if (mimeType === DOCX) {
       const headerHtml = await extractDocxHeader(buffer); // recover the page-header contact block
       const body = (await mammoth.convertToHtml({ buffer })).value || '';
-      const html = headerHtml + body;
+      const html = headerHtml + postProcessDocxHtml(body); // recover headings + columns
       const textLen = html.replace(/<[^>]+>/g, '').trim().length; // measure real text, not tags
       return { ok: textLen >= MIN_CHARS, kind: 'html', content: html };
     }

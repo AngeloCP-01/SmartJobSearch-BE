@@ -169,3 +169,15 @@ describe('postProcessDocxHtml — tab columns', () => {
     expect(out).toBe('<p>Frontend: React, HTML, CSS</p>');
   });
 });
+
+describe('extractRich — DOCX formatting fidelity', () => {
+  test('formats the real résumé: ruled headings, columns, centered contact', async () => {
+    const r = await extractRich(fixture('formatted-resume.docx'), DOCX);
+    expect(r.ok).toBe(true);
+    expect(r.kind).toBe('html');
+    expect(r.content).toContain('<h2 data-rule="true">'); // SUMMARY etc.
+    expect(r.content).toContain('<table class="doc-columns">'); // Mobile/Databases
+    expect(r.content).toContain('text-align:center'); // contact block
+    expect(r.content).not.toContain('\t'); // tabs consumed
+  });
+});
