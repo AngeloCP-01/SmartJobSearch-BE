@@ -2,7 +2,30 @@
 
 **Date:** 2026-07-02
 **Repos:** BE (`SmartJobSearchCRM-BE`) + FE (`SmartJobSearchCRM-FE`)
-**Status:** Approved design — pending spec review
+**Status:** Implemented (see Revision 2026-07-03 below)
+
+## Revision 2026-07-03 (as-built — DOCX now keeps its formatting)
+
+Live-testing a real résumé showed plain-text DOCX import destroyed all formatting
+(a flat wall of text). The as-built behavior changed:
+
+- **DOCX → formatted HTML**, not plain text. The backend uses `mammoth.convertToHtml`
+  (preserving bold, bullet/numbered lists, and paragraph structure) and the frontend
+  converts that HTML to editor JSON via a new `htmlToProseMirrorDoc` helper. The endpoint
+  now returns `{ ok, kind: 'html' | 'text', content }` (not `{ ok, text }`), so the FE
+  knows how to build editor content: `html` → `htmlToProseMirrorDoc`; `.md` →
+  `markdownToProseMirrorDoc`; PDF/plain → `textToProseMirrorDoc`.
+- **DOCX page-header recovery.** Word often stores the contact block (name / title /
+  email / links) in the document page header (`word/header*.xml`), which mammoth (body-only)
+  drops — silent data loss. `extractRich` reads the header parts via JSZip and prepends them
+  (first line as `<h1>`, rest as `<p>`).
+- **Still not recovered** (inherent to DOCX text extraction, acceptable — user re-styles in
+  the editor): section-heading *sizes* when the doc uses manual bold (not heading styles),
+  shape-drawn horizontal rules, exact spacing/centering/tab columns.
+- **PDF** stays plain text (PDFs carry no reliable structure). **Markdown** stays formatted.
+
+The rest of this document describes the original design; the sections below are superseded by
+the above where they conflict (notably "PDF / DOCX → plain text" and the `{ ok, text }` shape).
 
 ## Goal
 
