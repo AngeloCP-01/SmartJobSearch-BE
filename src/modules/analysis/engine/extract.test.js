@@ -121,3 +121,21 @@ describe('normalizeLabel', () => {
     expect(SECTION_LABELS.has('technical skills')).toBe(true);
   });
 });
+
+const { postProcessDocxHtml } = require('./extract');
+
+describe('postProcessDocxHtml — headings', () => {
+  test('promotes a curated label paragraph to a ruled h2', () => {
+    const out = postProcessDocxHtml('<p><strong>SUMMARY </strong></p><p>body text here</p>');
+    expect(out).toContain('<h2 data-rule="true">');
+    expect(out).toContain('body text here');
+    expect(out).not.toMatch(/<p><strong>SUMMARY/);
+  });
+  test('leaves a non-label bold job title as a paragraph', () => {
+    const html = '<p><strong>Software Developer (Full Stack / Backend-Focused)</strong></p>';
+    expect(postProcessDocxHtml(html)).toBe(html);
+  });
+  test('returns input unchanged on malformed input', () => {
+    expect(postProcessDocxHtml('not really <p html')).toBe('not really <p html');
+  });
+});

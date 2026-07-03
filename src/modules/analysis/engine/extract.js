@@ -80,6 +80,21 @@ async function extractDocxHeader(buffer) {
   }
 }
 
+// Rewrite specific paragraphs of mammoth's DOCX HTML to recover formatting it
+// drops. Best-effort: returns the input unchanged on any error (never regresses).
+function postProcessDocxHtml(html) {
+  try {
+    return String(html ?? '').replace(/<p\b[^>]*>([\s\S]*?)<\/p>/g, (whole, inner) => {
+      if (SECTION_LABELS.has(normalizeLabel(inner))) {
+        return `<h2 data-rule="true">${inner}</h2>`;
+      }
+      return whole;
+    });
+  } catch {
+    return html;
+  }
+}
+
 // Like extractText, but preserves structure for the in-app editor:
 // DOCX → HTML (mammoth convertToHtml: headings, bold, lists), PDF/markdown/plain
 // → raw text. Returns { ok, kind, content } where kind is 'html' or 'text', so
@@ -112,4 +127,4 @@ async function extractRich(buffer, mimeType) {
   }
 }
 
-module.exports = { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS, MIN_CHARS };
+module.exports = { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS, MIN_CHARS, postProcessDocxHtml };
