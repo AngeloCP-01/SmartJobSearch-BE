@@ -109,6 +109,21 @@ describe('extractDocxHeader', () => {
   });
 });
 
+describe('extractDocxHeader centering', () => {
+  test('centers header lines whose source paragraph is centered', async () => {
+    const doc = new JSZip();
+    doc.file('word/header1.xml',
+      '<?xml version="1.0"?><w:hdr xmlns:w="x">' +
+      '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Angelito C. Paa</w:t></w:r></w:p>' +
+      '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Software Developer</w:t></w:r></w:p>' +
+      '</w:hdr>');
+    const buf = await doc.generateAsync({ type: 'nodebuffer' });
+    const html = await extractDocxHeader(buf);
+    expect(html).toContain('<h1 style="text-align:center">Angelito C. Paa</h1>');
+    expect(html).toContain('<p style="text-align:center">Software Developer</p>');
+  });
+});
+
 describe('normalizeLabel', () => {
   test('strips tags, entities, trailing colon, and lowercases', () => {
     expect(normalizeLabel('<strong>SUMMARY </strong>')).toBe('summary');

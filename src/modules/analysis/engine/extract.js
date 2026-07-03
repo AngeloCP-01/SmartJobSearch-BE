@@ -59,7 +59,7 @@ async function extractDocxHeader(buffer) {
     const zip = await JSZip.loadAsync(buffer);
     const names = Object.keys(zip.files).filter((n) => /^word\/header\d*\.xml$/.test(n)).sort();
     const seen = new Set();
-    const lines = [];
+    const items = []; // { text, centered }
     for (const name of names) {
       const xml = await zip.file(name).async('string');
       for (const chunk of xml.split(/<w:p[ >]/).slice(1)) {
@@ -68,13 +68,16 @@ async function extractDocxHeader(buffer) {
           .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
           .trim();
-        if (text && !seen.has(text)) { seen.add(text); lines.push(text); } // dedupe across header parts
+        const centered = /<w:jc[^>]*w:val="center"/.test(chunk);
+        if (text && !seen.has(text)) { seen.add(text); items.push({ text, centered }); } // dedupe across header parts
       }
     }
-    if (!lines.length) return '';
+    if (!items.length) return '';
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const [name, ...rest] = lines; // first line is usually the name → heading
-    return `<h1>${esc(name)}</h1>` + rest.map((l) => `<p>${esc(l)}</p>`).join('');
+    const style = (c) => (c ? ' style="text-align:center"' : '');
+    const [first, ...rest] = items; // first line is usually the name → heading
+    return `<h1${style(first.centered)}>${esc(first.text)}</h1>`
+      + rest.map((it) => `<p${style(it.centered)}>${esc(it.text)}</p>`).join('');
   } catch {
     return '';
   }
