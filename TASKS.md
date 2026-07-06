@@ -26,6 +26,8 @@ Master coordination: `../TASKS.md`
 >
 > **Update (2026-07-02):** **V3-11 — Cover Letter: Edit in Editor** is **frontend-only, no backend changes** (a cover-letter integration, not an editor version); this repo carries only the spec + plan (`docs/superpowers/…2026-07-02-cover-letter-edit-in-editor…`), merged to `main` and **pushed**. Reuses the existing `POST /authored-documents`. Implementation + 225 tests in `SmartJobSearchCRM-FE`.
 
+> **Update (2026-07-06):** **V3-13 — Documents → Editor: DOCX formatting fidelity** — **real backend work** (merged to local `main`). Closes the V3-12 deferred visual-fidelity gap via a pure HTML post-process on mammoth's output in `engine/extract.js`: `postProcessDocxHtml()` (curated section-label list → `<h2 data-rule="true">`; tab-split lines → borderless `<table class="doc-columns">`) + `normalizeLabel`/`SECTION_LABELS`, and `extractDocxHeader` now centers the contact block from the source `w:jc`. Wrapped so any error falls back to raw mammoth output (never regresses); `extractText` untouched; no new dep, no migration. Added `tests/fixtures/formatted-resume.docx` + an end-to-end integration test. TDD; **BE 217 / 1 skipped** (serial). Frontend (HeadingRule + TableColumns extensions, importer alignment, CSS, print/pagination fix) + 242 tests in `SmartJobSearchCRM-FE`. Final Opus cross-repo review: Ready to merge. Spec/plan: `docs/superpowers/…2026-07-03-docx-open-fidelity…`. See master tracker V3-13.
+
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
 ## BE-0 — Scaffold
