@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const JSZip = require('jszip');
-const { extractText, extractRich, extractDocxHeader } = require('./extract');
+const { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS } = require('./extract');
 
 const PDF = 'application/pdf';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -106,5 +106,78 @@ describe('extractDocxHeader', () => {
 
   test('non-docx / garbage buffer never throws → empty string', async () => {
     expect(await extractDocxHeader(Buffer.from('not a zip'))).toBe('');
+  });
+});
+
+describe('extractDocxHeader centering', () => {
+  test('centers header lines whose source paragraph is centered', async () => {
+    const doc = new JSZip();
+    doc.file('word/header1.xml',
+      '<?xml version="1.0"?><w:hdr xmlns:w="x">' +
+      '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Angelito C. Paa</w:t></w:r></w:p>' +
+      '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Software Developer</w:t></w:r></w:p>' +
+      '</w:hdr>');
+    const buf = await doc.generateAsync({ type: 'nodebuffer' });
+    const html = await extractDocxHeader(buf);
+    expect(html).toContain('<h1 style="text-align:center">Angelito C. Paa</h1>');
+    expect(html).toContain('<p style="text-align:center">Software Developer</p>');
+  });
+});
+
+describe('normalizeLabel', () => {
+  test('strips tags, entities, trailing colon, and lowercases', () => {
+    expect(normalizeLabel('<strong>SUMMARY </strong>')).toBe('summary');
+    expect(normalizeLabel('Technical Skills:')).toBe('technical skills');
+    expect(normalizeLabel('DevOps &amp; Testing')).toBe('devops & testing');
+  });
+  test('SECTION_LABELS holds normalized résumé sections', () => {
+    expect(SECTION_LABELS.has('summary')).toBe(true);
+    expect(SECTION_LABELS.has('experience')).toBe(true);
+    expect(SECTION_LABELS.has('technical skills')).toBe(true);
+  });
+});
+
+const { postProcessDocxHtml } = require('./extract');
+
+describe('postProcessDocxHtml — headings', () => {
+  test('promotes a curated label paragraph to a ruled h2', () => {
+    const out = postProcessDocxHtml('<p><strong>SUMMARY </strong></p><p>body text here</p>');
+    expect(out).toContain('<h2 data-rule="true">');
+    expect(out).toContain('body text here');
+    expect(out).not.toMatch(/<p><strong>SUMMARY/);
+  });
+  test('leaves a non-label bold job title as a paragraph', () => {
+    const html = '<p><strong>Software Developer (Full Stack / Backend-Focused)</strong></p>';
+    expect(postProcessDocxHtml(html)).toBe(html);
+  });
+  test('returns input unchanged on malformed input', () => {
+    expect(postProcessDocxHtml('not really <p html')).toBe('not really <p html');
+  });
+});
+
+describe('postProcessDocxHtml — tab columns', () => {
+  test('splits a tab-separated line into a borderless two-cell table', () => {
+    const html = '<p><strong>Mobile:</strong> Android\t\t\t<strong>Databases:</strong> MySQL</p>';
+    const out = postProcessDocxHtml(html);
+    expect(out).toContain('<table class="doc-columns">');
+    expect(out).toContain('<td><strong>Mobile:</strong> Android</td>');
+    expect(out).toContain('<td><strong>Databases:</strong> MySQL</td>');
+    expect(out).not.toContain('\t');
+  });
+  test('a trailing-only tab stays a paragraph with the tab stripped', () => {
+    const out = postProcessDocxHtml('<p>Frontend: React, HTML, CSS\t</p>');
+    expect(out).toBe('<p>Frontend: React, HTML, CSS</p>');
+  });
+});
+
+describe('extractRich — DOCX formatting fidelity', () => {
+  test('formats the real résumé: ruled headings, columns, centered contact', async () => {
+    const r = await extractRich(fixture('formatted-resume.docx'), DOCX);
+    expect(r.ok).toBe(true);
+    expect(r.kind).toBe('html');
+    expect(r.content).toContain('<h2 data-rule="true">'); // SUMMARY etc.
+    expect(r.content).toContain('<table class="doc-columns">'); // Mobile/Databases
+    expect(r.content).toContain('text-align:center'); // contact block
+    expect(r.content).not.toContain('\t'); // tabs consumed
   });
 });

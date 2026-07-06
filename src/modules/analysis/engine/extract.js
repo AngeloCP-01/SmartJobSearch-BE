@@ -9,6 +9,26 @@ const MD = 'text/markdown';
 const MDX = 'text/x-markdown';
 const TXT = 'text/plain';
 
+const SECTION_LABELS = new Set([
+  'summary', 'professional summary', 'profile', 'objective', 'career objective',
+  'technical skills', 'skills', 'core competencies', 'experience', 'work experience',
+  'professional experience', 'employment history', 'projects', 'education',
+  'certifications', 'certifications & licenses', 'awards', 'achievements',
+  'publications', 'languages', 'interests', 'references', 'volunteer experience',
+  'additional information', 'contact',
+]);
+
+function normalizeLabel(html) {
+  return String(html ?? '')
+    .replace(/<[^>]+>/g, '')                 // strip tags
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim()             // collapse whitespace
+    .replace(/:$/, '')                       // drop one trailing colon
+    .trim()
+    .toLowerCase();
+}
+
 async function extractText(buffer, mimeType) {
   try {
     let text = '';
@@ -39,7 +59,7 @@ async function extractDocxHeader(buffer) {
     const zip = await JSZip.loadAsync(buffer);
     const names = Object.keys(zip.files).filter((n) => /^word\/header\d*\.xml$/.test(n)).sort();
     const seen = new Set();
-    const lines = [];
+    const items = []; // { text, centered }
     for (const name of names) {
       const xml = await zip.file(name).async('string');
       for (const chunk of xml.split(/<w:p[ >]/).slice(1)) {
@@ -48,15 +68,44 @@ async function extractDocxHeader(buffer) {
           .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
           .trim();
-        if (text && !seen.has(text)) { seen.add(text); lines.push(text); } // dedupe across header parts
+        const centered = /<w:jc[^>]*w:val="center"/.test(chunk);
+        if (text && !seen.has(text)) { seen.add(text); items.push({ text, centered }); } // dedupe across header parts
       }
     }
-    if (!lines.length) return '';
+    if (!items.length) return '';
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const [name, ...rest] = lines; // first line is usually the name → heading
-    return `<h1>${esc(name)}</h1>` + rest.map((l) => `<p>${esc(l)}</p>`).join('');
+    const style = (c) => (c ? ' style="text-align:center"' : '');
+    const [first, ...rest] = items; // first line is usually the name → heading
+    return `<h1${style(first.centered)}>${esc(first.text)}</h1>`
+      + rest.map((it) => `<p${style(it.centered)}>${esc(it.text)}</p>`).join('');
   } catch {
     return '';
+  }
+}
+
+// Rewrite specific paragraphs of mammoth's DOCX HTML to recover formatting it
+// drops. Best-effort: returns the input unchanged on any error (never regresses).
+function postProcessDocxHtml(html) {
+  try {
+    return String(html ?? '').replace(/<p\b[^>]*>([\s\S]*?)<\/p>/g, (whole, inner) => {
+      if (SECTION_LABELS.has(normalizeLabel(inner))) {
+        return `<h2 data-rule="true">${inner}</h2>`;
+      }
+      const m = inner.match(/^([\s\S]*?\S)\t+([\s\S]*)$/); // first tab run w/ content on left
+      if (m) {
+        const left = m[1].trim();
+        const right = m[2].replace(/\t+/g, ' ').trim();     // fold any further tabs on the right
+        if (left && right) {
+          return `<table class="doc-columns"><tbody><tr><td>${left}</td><td>${right}</td></tr></tbody></table>`;
+        }
+      }
+      if (inner.includes('\t')) {                            // stray leading/trailing tab, no columns
+        return `<p>${inner.replace(/\t+/g, ' ').trim()}</p>`;
+      }
+      return whole;
+    });
+  } catch {
+    return html;
   }
 }
 
@@ -78,7 +127,7 @@ async function extractRich(buffer, mimeType) {
     if (mimeType === DOCX) {
       const headerHtml = await extractDocxHeader(buffer); // recover the page-header contact block
       const body = (await mammoth.convertToHtml({ buffer })).value || '';
-      const html = headerHtml + body;
+      const html = headerHtml + postProcessDocxHtml(body); // recover headings + columns
       const textLen = html.replace(/<[^>]+>/g, '').trim().length; // measure real text, not tags
       return { ok: textLen >= MIN_CHARS, kind: 'html', content: html };
     }
@@ -92,4 +141,4 @@ async function extractRich(buffer, mimeType) {
   }
 }
 
-module.exports = { extractText, extractRich, extractDocxHeader, MIN_CHARS };
+module.exports = { extractText, extractRich, extractDocxHeader, normalizeLabel, SECTION_LABELS, MIN_CHARS, postProcessDocxHtml };
