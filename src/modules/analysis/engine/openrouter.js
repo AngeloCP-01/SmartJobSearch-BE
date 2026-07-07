@@ -72,13 +72,44 @@ function parseModels() {
   return list.length ? list : [DEFAULT_MODEL];
 }
 
-// One model, one attempt: the shared network exchange with OpenRouter. Returns
-// the assistant message content (a string); throws a tagged OpenRouterError.
-// Reused by both the JSON analysis (`complete`) and freeform text (`generateText`).
-async function chat(model, { messages, responseFormat, temperature = 0, maxTokens = 1500 }) {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new OpenRouterError('OpenRouter API key not configured', 'config');
-  const base = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+// Known providers, each an OpenAI-compatible /chat/completions endpoint with its
+// own base-URL + API-key env vars. Lets one model chain span providers, e.g. a
+// fast NVIDIA model as primary with the OpenRouter free pool as fallback.
+const PROVIDERS = {
+  openrouter: { baseEnv: 'OPENROUTER_BASE_URL', defaultBase: 'https://openrouter.ai/api/v1', keyEnv: 'OPENROUTER_API_KEY' },
+  nvidia: { baseEnv: 'NVIDIA_BASE_URL', defaultBase: 'https://integrate.api.nvidia.com/v1', keyEnv: 'NVIDIA_OPENAI_KEY' },
+};
+
+// A model spec may carry a "<provider>:" prefix (e.g. "nvidia:qwen/qwen3-...") to
+// route it to that provider; without a KNOWN prefix it defaults to OpenRouter.
+// Matching only known provider names means an OpenRouter ":free" suffix
+// (openai/gpt-oss-20b:free) is never mistaken for a provider. Returns the
+// resolved provider name, the bare model id to send, and the base URL + key.
+function resolveProvider(spec) {
+  const s = String(spec || '');
+  let provider = 'openrouter';
+  let model = s;
+  const i = s.indexOf(':');
+  if (i > 0 && Object.prototype.hasOwnProperty.call(PROVIDERS, s.slice(0, i))) {
+    provider = s.slice(0, i);
+    model = s.slice(i + 1);
+  }
+  const cfg = PROVIDERS[provider];
+  const rawBase = process.env[cfg.baseEnv];
+  // Tolerate a stray trailing quote/comma/space in the env value (a common .env slip).
+  const baseUrl = (rawBase && rawBase.trim().replace(/["',\s]+$/g, '')) || cfg.defaultBase;
+  return { provider, model, baseUrl, key: process.env[cfg.keyEnv] };
+}
+
+// One model, one attempt: the shared network exchange with the resolved provider.
+// Returns the assistant message content (a string); throws a tagged
+// OpenRouterError. Reused by the JSON analysis (`complete`) and freeform text
+// (`generateText`). An empty content (e.g. a reasoning model that spent its whole
+// token budget "thinking") throws 'parse', so the caller falls through to the
+// next model rather than returning a blank result.
+async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxTokens = 1500 }) {
+  const { model, baseUrl: base, key } = resolveProvider(modelSpec);
+  if (!key) throw new OpenRouterError(`API key not configured for the selected provider (${modelSpec})`, 'config');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -259,5 +290,5 @@ async function aiMatch(resumeText, jobDescription) {
 }
 
 module.exports = {
-  complete, completeWithFallback, generateText, generateTextWithFallback, generateJson, aiMatch, extractJson, OpenRouterError,
+  complete, resolveProvider, completeWithFallback, generateText, generateTextWithFallback, generateJson, aiMatch, extractJson, OpenRouterError,
 };

@@ -1,4 +1,4 @@
-const { aiMatch, complete, completeWithFallback } = require('./openrouter');
+const { aiMatch, complete, completeWithFallback, resolveProvider } = require('./openrouter');
 
 const okResponse = (payload) => ({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }] }) });
 const errResponse = (status, body = 'err') => ({ ok: false, status, text: async () => body });
@@ -14,6 +14,8 @@ afterEach(() => {
   delete process.env.OPENROUTER_API_KEY; delete process.env.OPENROUTER_MODEL;
   delete process.env.OPENROUTER_RETRY_BASE_MS; delete process.env.OPENROUTER_ATTEMPTS;
   delete process.env.OPENROUTER_RETRY_AFTER_MAX_MS;
+  delete process.env.OPENROUTER_BASE_URL;
+  delete process.env.NVIDIA_BASE_URL; delete process.env.NVIDIA_OPENAI_KEY;
   jest.restoreAllMocks();
 });
 const rateLimited = (retryAfterSecs) => ({
@@ -192,4 +194,54 @@ test('throws the last error when every model is exhausted', async () => {
   global.fetch = jest.fn().mockResolvedValue(errResponse(503, 'down'));
   await expect(completeWithFallback('r', 'j')).rejects.toMatchObject({ kind: 'http', status: 503 });
   expect(global.fetch).toHaveBeenCalledTimes(4); // 2 models × 2 attempts
+});
+
+// ---- Multi-provider routing (Qwen-on-NVIDIA primary, OpenRouter fallback) ----
+describe('resolveProvider', () => {
+  test('nvidia: prefix routes to the NVIDIA base URL + key and strips the prefix', () => {
+    process.env.NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+    process.env.NVIDIA_OPENAI_KEY = 'nv-key';
+    const r = resolveProvider('nvidia:qwen/qwen3-next-80b-a3b-instruct');
+    expect(r.provider).toBe('nvidia');
+    expect(r.model).toBe('qwen/qwen3-next-80b-a3b-instruct');
+    expect(r.baseUrl).toBe('https://integrate.api.nvidia.com/v1');
+    expect(r.key).toBe('nv-key');
+  });
+
+  test('no prefix defaults to OpenRouter and does NOT treat a :free suffix as a provider', () => {
+    process.env.OPENROUTER_API_KEY = 'or-key';
+    const r = resolveProvider('openai/gpt-oss-20b:free');
+    expect(r.provider).toBe('openrouter');
+    expect(r.model).toBe('openai/gpt-oss-20b:free');
+    expect(r.baseUrl).toBe('https://openrouter.ai/api/v1');
+    expect(r.key).toBe('or-key');
+  });
+
+  test('sanitizes a stray trailing quote/comma in the base URL env', () => {
+    process.env.NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1",';
+    process.env.NVIDIA_OPENAI_KEY = 'nv-key';
+    expect(resolveProvider('nvidia:qwen/x').baseUrl).toBe('https://integrate.api.nvidia.com/v1');
+  });
+});
+
+describe('chat routing via complete()', () => {
+  test('an nvidia:-prefixed model hits the NVIDIA endpoint with the NVIDIA key + stripped model', async () => {
+    process.env.OPENROUTER_MODEL = 'nvidia:qwen/qwen3-next-80b-a3b-instruct';
+    process.env.NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+    process.env.NVIDIA_OPENAI_KEY = 'nv-key';
+    let captured;
+    global.fetch = jest.fn().mockImplementation((url, opts) => { captured = { url, opts }; return Promise.resolve(EMPTY_OK); });
+    await complete('resume', 'jd');
+    expect(String(captured.url)).toBe('https://integrate.api.nvidia.com/v1/chat/completions');
+    expect(captured.opts.headers.Authorization).toBe('Bearer nv-key');
+    expect(JSON.parse(captured.opts.body).model).toBe('qwen/qwen3-next-80b-a3b-instruct');
+  });
+
+  test('a missing provider key → config error, no request made', async () => {
+    process.env.OPENROUTER_MODEL = 'nvidia:qwen/x';
+    delete process.env.NVIDIA_OPENAI_KEY;
+    global.fetch = jest.fn();
+    await expect(complete('r', 'j')).rejects.toThrow(/key/i);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });
