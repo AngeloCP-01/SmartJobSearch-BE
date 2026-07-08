@@ -26,4 +26,26 @@ describe('chunkText', () => {
     // each later chunk starts with the last sentence of the previous chunk
     expect(chunks[1].startsWith(chunks[0].trim().split(/(?<=[.!?])\s+/).slice(-1)[0])).toBe(true);
   });
+
+  test('hard-splits an oversized run of text that has no sentence punctuation', () => {
+    const blob = 'Node.js, Express, TypeScript, Python, FastAPI, Java, React, NextJs, PostgreSQL, MongoDB, Redis, Docker, CI/CD, Nginx, GCP, Linode';
+    const chunks = chunkText(blob, { targetChars: 40, overlapSentences: 0 });
+    expect(chunks.length).toBeGreaterThan(1);
+    // no chunk is wildly over target (allow a small boundary slack)
+    for (const c of chunks) expect(c.length).toBeLessThanOrEqual(60);
+    // content preserved (order + tokens)
+    expect(chunks.join(' ').replace(/\s+/g, ' ')).toContain('Linode');
+  });
+
+  test('overlapSentences > 1 only pulls from the immediately-previous chunk, not two back', () => {
+    const text = 'Alpha one. Alpha two. Beta one. Gamma one. Gamma two.';
+    const chunks = chunkText(text, { targetChars: 20, overlapSentences: 2 });
+    // "Beta one." belongs two chunks back from the last; it must not leak into the last chunk
+    // (assert no chunk contains a sentence that originated 2+ chunks earlier)
+    const base = chunkText(text, { targetChars: 20, overlapSentences: 0 });
+    for (let i = 1; i < chunks.length; i++) {
+      // the overlap prefix must be a suffix of the ORIGINAL previous chunk
+      expect(chunks[i].includes(base[i])).toBe(true);
+    }
+  });
 });

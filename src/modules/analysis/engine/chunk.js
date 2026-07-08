@@ -5,6 +5,19 @@ function splitSentences(s) {
   return (s.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || []).map((x) => x.trim()).filter(Boolean);
 }
 
+function hardSplit(s, max) {
+  const out = [];
+  let rest = s.trim();
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf(' ', max);
+    if (cut <= 0) cut = max; // no space to break on -> hard cut
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) out.push(rest);
+  return out;
+}
+
 function chunkText(text, { targetChars = 500, overlapSentences = 1 } = {}) {
   const clean = String(text || '').replace(/\r\n/g, '\n').trim();
   if (!clean) return [];
@@ -15,8 +28,17 @@ function chunkText(text, { targetChars = 500, overlapSentences = 1 } = {}) {
     if (para.length <= targetChars) { units.push(para); continue; }
     let buf = '';
     for (const sent of splitSentences(para)) {
-      if (buf && buf.length + 1 + sent.length > targetChars) { units.push(buf); buf = sent; }
-      else buf = buf ? `${buf} ${sent}` : sent;
+      // Hard-split any sentence that exceeds targetChars
+      if (sent.length > targetChars) {
+        if (buf) units.push(buf);
+        for (const piece of hardSplit(sent, targetChars)) units.push(piece);
+        buf = '';
+      } else if (buf && buf.length + 1 + sent.length > targetChars) {
+        units.push(buf);
+        buf = sent;
+      } else {
+        buf = buf ? `${buf} ${sent}` : sent;
+      }
     }
     if (buf) units.push(buf);
   }
@@ -31,9 +53,11 @@ function chunkText(text, { targetChars = 500, overlapSentences = 1 } = {}) {
   if (buf) chunks.push(buf);
 
   // Optional overlap: seed each chunk with the previous chunk's final sentence(s).
+  // Snapshot chunks before mutating to prevent leaking content from 2+ chunks back
   if (overlapSentences > 0) {
+    const original = chunks.slice();
     for (let i = 1; i < chunks.length; i += 1) {
-      const tail = splitSentences(chunks[i - 1]).slice(-overlapSentences).join(' ');
+      const tail = splitSentences(original[i - 1]).slice(-overlapSentences).join(' ');
       if (tail) chunks[i] = `${tail} ${chunks[i]}`;
     }
   }
