@@ -11,6 +11,23 @@ const coverLetterSchema = z.object({
   documentId: z.string().uuid(),
 });
 
+const tailorSchema = z.object({
+  applicationId: z.string().uuid(),
+  documentId: z.string().uuid(),
+});
+
+const tailoringSuggestionSchema = z.object({
+  kind: z.enum(['add', 'emphasize', 'rephrase', 'remove']),
+  text: z.string(),
+  why: z.string(),
+  groundedIn: z.string(),
+  severity: z.enum(['high', 'medium', 'low']),
+});
+
+const tailoringResultSchema = z.object({
+  suggestions: z.array(tailoringSuggestionSchema).max(12),
+});
+
 const entrySchema = z.object({
   term: z.string(), type: z.enum(['hard', 'soft']),
   jdCount: z.number().int(), resumeCount: z.number().int(), weight: z.number(),
@@ -34,4 +51,7 @@ const analysisReportSchema = z.object({
   })),
 });
 
-module.exports = { runAnalysisSchema, coverLetterSchema, analysisReportSchema };
+module.exports = {
+  runAnalysisSchema, coverLetterSchema, tailorSchema,
+  analysisReportSchema, tailoringResultSchema,
+};

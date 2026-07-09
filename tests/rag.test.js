@@ -87,6 +87,26 @@ describe('retrieve', () => {
     const hits = await ragRetrieve.retrieve(user.id, 'node', { topK: 5, documentIds: [b.id] });
     expect(hits.every((h) => h.documentId === b.id)).toBe(true);
   });
+
+  test('a long query is chunked so no embed input exceeds the model size bound', async () => {
+    const { user } = await registerAndLogin();
+    const doc = await makeTextDoc(user.id, 'Node backend APIs with PostgreSQL.');
+    await ragRetrieve.indexDocument(user.id, doc.id);
+    const { embed } = require('../src/modules/analysis/engine/embeddings');
+    embed.mockClear();
+    // A job-description-sized query well beyond the 512-token embedding limit.
+    const longQuery = 'We need a senior backend engineer. '.repeat(120); // ~4200 chars
+    const hits = await ragRetrieve.retrieve(user.id, longQuery, { topK: 5 });
+    expect(hits.length).toBeGreaterThan(0);
+    // Every 'query' embedding input must stay within the char bound used for
+    // indexed passages — tokens <= chars, so this keeps it under the model limit.
+    const queryCalls = embed.mock.calls.filter(([, type]) => type === 'query');
+    expect(queryCalls.length).toBeGreaterThan(0);
+    for (const [texts] of queryCalls) {
+      expect(texts.length).toBeGreaterThan(1); // the long query really was split
+      for (const t of texts) expect(t.length).toBeLessThanOrEqual(500);
+    }
+  });
 });
 
 const { agent } = require('./helpers/testApp');

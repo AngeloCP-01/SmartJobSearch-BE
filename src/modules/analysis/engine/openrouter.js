@@ -20,7 +20,12 @@ const SYSTEM = [
 ].join(' ');
 
 const DEFAULT_MODEL = 'openai/gpt-oss-120b:free';
-const TIMEOUT_MS = 40000;
+// The free primary (NVIDIA) has spiky latency (observed 80-156s under load).
+// 60s gives it a fair shot on a normal/moderately-slow response, then abandons
+// it for the next model rather than hanging. A timed-out model is NOT retried on
+// itself (see isRetryableSameModel) — it fell through to the next model instead,
+// so the chain doesn't burn attempts x timeout on one slow endpoint. Env-tunable.
+const TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 60000);
 
 // An error carrying a `kind` discriminator so callers can log/handle precisely:
 //   'config'  — missing/invalid configuration (e.g. no API key)
@@ -185,9 +190,13 @@ async function generateText(messages, modelArg) {
 // usually clears in milliseconds. A 429 is deliberately excluded: the provider
 // is rate-limited (Retry-After is typically seconds), so trying a DIFFERENT
 // model immediately beats waiting. 429 falls through to the next model instead.
+// A 'timeout' is likewise excluded: if a model did not answer within the (tens
+// of seconds) window it is overloaded, and retrying the SAME slow endpoint just
+// burns another full window — fall through to the next model, which for free
+// tiers is the difference between a ~2 minute wait and a ~5 minute one.
 const RETRYABLE_HTTP = new Set([500, 502, 503, 504]);
 function isRetryableSameModel(err) {
-  return err.kind === 'timeout' || err.kind === 'network'
+  return err.kind === 'network'
     || (err.kind === 'http' && RETRYABLE_HTTP.has(err.status));
 }
 // Fatal = pointless to try anything else (same key/config fails for every model).
@@ -227,6 +236,10 @@ async function withModelFallback(attempt) {
             await wait(baseMs * 2 ** (attemptN - 1)); // eslint-disable-line no-await-in-loop
             continue;
           }
+          // Log EACH abandoned model, not just the last — otherwise a chain that
+          // silently falls through its primary (e.g. NVIDIA) to a flaky free model
+          // is indistinguishable from the free model simply being slow.
+          console.warn(`[ai] model ${model} failed (kind=${err.kind}${err.status ? ` status=${err.status}` : ''}): ${err.message}`);
           break; // rate-limited (429), non-transient (parse), or out of retries → next model
         }
       }
@@ -257,9 +270,17 @@ function generateTextWithFallback(messages) {
 
 // Structured JSON generation against a caller-supplied Zod schema — like
 // complete() but generic (any schema/prompt). Returns { data, model }.
+//
+// maxTokens is generous (4000) because reasoning models in the fallback chain
+// (e.g. gpt-oss) spend a variable, sometimes large number of hidden reasoning
+// tokens BEFORE emitting any content. With a tight budget a high-reasoning run
+// exhausts it mid-thought and returns empty content, which surfaces as a 'parse'
+// error and fails the whole request. The headroom lets reasoning + the JSON
+// answer both fit. Env-overridable for tuning without a code change.
+const JSON_MAX_TOKENS = Number(process.env.OPENROUTER_JSON_MAX_TOKENS || 4000);
 async function generateJsonOnce(messages, schema, modelArg) {
   const model = modelArg || parseModels()[0];
-  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: 1500 });
+  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: JSON_MAX_TOKENS });
   try {
     return { data: schema.parse(JSON.parse(extractJson(content))), model };
   } catch (e) {

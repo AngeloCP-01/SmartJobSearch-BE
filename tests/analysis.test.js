@@ -6,13 +6,17 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'analysis-it-'));
 process.env.UPLOAD_DIR = tmpDir;
 
 jest.mock('../src/modules/analysis/engine/openrouter');
-const { aiMatch, generateTextWithFallback } = require('../src/modules/analysis/engine/openrouter');
+const { aiMatch, generateTextWithFallback, generateJson } = require('../src/modules/analysis/engine/openrouter');
+
+jest.mock('../src/modules/rag/rag.service');
+const { retrieve, indexDocument } = require('../src/modules/rag/rag.service');
 
 const { agent } = require('./helpers/testApp');
 const { prisma, resetDb } = require('./helpers/db');
 const { registerAndLogin } = require('./helpers/auth');
 
 beforeEach(resetDb);
+beforeEach(() => { indexDocument.mockResolvedValue({ chunks: 0 }); });
 // Guarantee no OPENROUTER_API_KEY leaks between tests even if one fails mid-way.
 afterEach(() => { delete process.env.OPENROUTER_API_KEY; });
 afterAll(async () => { await prisma.$disconnect(); fs.rmSync(tmpDir, { recursive: true, force: true }); });
@@ -247,4 +251,159 @@ test('GET /api/analysis/config reflects the API key presence', async () => {
   delete process.env.OPENROUTER_API_KEY;
   expect((await agent().get('/api/analysis/config').set(auth(token))).body).toEqual({ aiAvailable: false });
   expect((await agent().get('/api/analysis/config')).status).toBe(401);
+});
+
+// --- AI résumé tailoring (RAG-grounded) ---
+
+test('tailor returns grounded suggestions and calls retrieve with the JD', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Kafka streaming and PostgreSQL.');
+  const docId = await uploadResume(token);
+
+  retrieve.mockResolvedValue([{ documentId: docId, content: 'Built Kafka streaming pipelines at scale.', similarity: 0.9 }]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [
+      { kind: 'add', text: 'Add your Kafka pipeline work — 250 events/s.', why: 'The JD calls for Kafka streaming.', groundedIn: 'My Resume', severity: 'high' },
+      { kind: 'emphasize', text: 'Move PostgreSQL higher.', why: 'Listed as required.', groundedIn: 'this résumé', severity: 'medium' },
+    ] },
+  });
+
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  expect(retrieve).toHaveBeenCalledWith(expect.any(String), 'We need Kafka streaming and PostgreSQL.', { topK: 8 });
+  expect(res.body.suggestions).toHaveLength(2);
+  expect(res.body.suggestions[0]).toMatchObject({ kind: 'add', groundedIn: 'My Resume', severity: 'high' });
+  expect(res.body.meta).toMatchObject({ position: 'Backend Engineer', documentName: 'My Resume', model: 'test/model:free', evidenceCount: 1 });
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('tailor drops an "add" suggestion not grounded in a retrieved document (no fabrication)', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Rust.');
+  const docId = await uploadResume(token);
+
+  retrieve.mockResolvedValue([{ documentId: docId, content: 'Node.js and PostgreSQL experience.', similarity: 0.8 }]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [
+      { kind: 'add', text: 'Add Rust systems programming.', why: 'JD wants Rust.', groundedIn: 'Ghostwriter.pdf', severity: 'high' },
+      { kind: 'emphasize', text: 'Emphasize PostgreSQL.', why: 'Adjacent skill.', groundedIn: 'this résumé', severity: 'low' },
+    ] },
+  });
+
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  // The fabricated "add" (grounded in a document that was never retrieved) is removed.
+  expect(res.body.suggestions).toHaveLength(1);
+  expect(res.body.suggestions[0].kind).toBe('emphasize');
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('tailor does not let the display placeholder ("a document") bypass the no-fabrication filter', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Go.');
+  const docId = await uploadResume(token);
+  // Retrieved chunk points at a documentId with no matching Document row (orphaned) →
+  // its display name is the "a document" placeholder, which must NOT gate the backstop.
+  retrieve.mockResolvedValue([{ documentId: '00000000-0000-0000-0000-000000000000', content: 'Go microservices.', similarity: 0.7 }]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [
+      { kind: 'add', text: 'Add Go microservices.', why: 'JD wants Go.', groundedIn: 'a document', severity: 'high' },
+      { kind: 'emphasize', text: 'Emphasize backend work.', why: 'Adjacent.', groundedIn: 'this résumé', severity: 'low' },
+    ] },
+  });
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  expect(res.body.suggestions).toHaveLength(1);
+  expect(res.body.suggestions[0].kind).toBe('emphasize');
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('tailor still returns suggestions when retrieval is empty', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  retrieve.mockResolvedValue([]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [{ kind: 'rephrase', text: 'Lead with impact verbs.', why: 'Reads passively.', groundedIn: 'this résumé', severity: 'medium' }] },
+  });
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'Node.js role.');
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  expect(res.body.suggestions).toHaveLength(1);
+  expect(res.body.meta.evidenceCount).toBe(0);
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('tailor requires a job description (400)', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, undefined);
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(400);
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+test('tailor needs AI configured → 503, never calls the model, when no key', async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  generateJson.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'Node.js role.');
+  const docId = await uploadResume(token);
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(503);
+  expect(generateJson).not.toHaveBeenCalled();
+});
+
+test('tailor surfaces a friendly 503 when the AI service fails', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  retrieve.mockResolvedValue([]);
+  generateJson.mockRejectedValue(Object.assign(new Error('429 rate limited'), { kind: 'http', status: 429 }));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+    expect(res.status).toBe(503);
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
+});
+
+test('tailor surfaces a friendly 503 when RAG retrieval fails', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  retrieve.mockRejectedValue(Object.assign(new Error('pgvector down'), { kind: 'db' }));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+    expect(res.status).toBe(503);
+    expect(generateJson).not.toHaveBeenCalled();
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
 });
