@@ -250,6 +250,10 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
     'kind "emphasize", "rephrase", and "remove" operate only on the CURRENT RÉSUMÉ; set their groundedIn to "this résumé".',
     'severity is "high" for gaps that clearly cost the candidate the match, "medium" for meaningful improvements, "low" for polish.',
     'Return at most 12 suggestions, most important first.',
+    // Explicit output contract — without the exact shape, models omit fields
+    // (commonly "why") or return markdown prose instead of JSON.
+    'Return ONLY one minified JSON object, with no markdown, code fences, or commentary, of exactly this shape: {"suggestions":[{"kind":"add|emphasize|rephrase|remove","text":"the concrete edit","why":"one sentence on why it matters for THIS job","groundedIn":"a document name, or the words this résumé","severity":"high|medium|low"}]}.',
+    'Every suggestion object MUST include all five fields: kind, text, why, groundedIn, severity. Never omit "why".',
     // Humanizer rules (from the "Signs of AI writing" guide):
     'Write like a real person. Do NOT use em dashes or en dashes (use commas, periods, or parentheses), emojis, or curly quotes.',
     'Avoid AI-tell vocabulary such as: passionate, thrilled, excited, delve, leverage, robust, dynamic, seamless, spearheaded, elevate, resonate. Prefer plain verbs.',
