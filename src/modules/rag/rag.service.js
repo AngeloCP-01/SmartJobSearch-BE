@@ -1,5 +1,6 @@
 const prisma = require('../../shared/database/prisma');
 const crypto = require('crypto');
+const { Prisma } = require('@prisma/client');
 const storage = require('../../shared/storage');
 const { extractText } = require('../analysis/engine/extract');
 const { chunkText } = require('../analysis/engine/chunk');
@@ -44,4 +45,22 @@ async function reindexAll(userId) {
   return { documents: docs.length, chunks };
 }
 
-module.exports = { indexDocument, reindexAll };
+// Retrieve the top-K chunks most similar to queryText for this user (cosine).
+// Always userId-scoped; optional documentIds narrows to specific documents.
+async function retrieve(userId, queryText, { topK = 6, documentIds } = {}) {
+  const [qvec] = await embed([queryText], 'query');
+  const q = vecLiteral(qvec);
+  const filter = documentIds && documentIds.length
+    ? Prisma.sql`AND "documentId" = ANY(${documentIds})`
+    : Prisma.empty;
+  // Qualify the cast + distance operator — pgvector is in `public`, which is not
+  // on the per-worker test schema search_path (see Task 3).
+  return prisma.$queryRaw`
+    SELECT "documentId", content, 1 - (embedding OPERATOR(public.<=>) ${q}::public.vector) AS similarity
+    FROM "DocumentChunk"
+    WHERE "userId" = ${userId} ${filter}
+    ORDER BY embedding OPERATOR(public.<=>) ${q}::public.vector
+    LIMIT ${topK}`;
+}
+
+module.exports = { indexDocument, reindexAll, retrieve };

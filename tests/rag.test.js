@@ -51,3 +51,40 @@ describe('indexDocument', () => {
     expect(r.chunks).toBe(0);
   });
 });
+
+const ragRetrieve = require('../src/modules/rag/rag.service');
+
+describe('retrieve', () => {
+  test('returns the nearest chunk first and never crosses users', async () => {
+    const { user } = await registerAndLogin();
+    const other = await registerAndLogin();
+    // 'N...' node doc vs 'G...' gardening doc — mock embeds by first char, so a
+    // query starting with 'N' is nearest the node doc.
+    const nodeDoc = await makeTextDoc(user.id, 'Node backend APIs with PostgreSQL.');
+    const gardenDoc = await makeTextDoc(user.id, 'Gardening tips for tomatoes.');
+    await ragRetrieve.indexDocument(user.id, nodeDoc.id);
+    await ragRetrieve.indexDocument(user.id, gardenDoc.id);
+    await ragRetrieve.indexDocument(other.user.id, (await makeTextDoc(other.user.id, 'Nutrition and diet plans.')).id);
+
+    const hits = await ragRetrieve.retrieve(user.id, 'Need a Node engineer', { topK: 5 });
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].documentId).toBe(nodeDoc.id);
+    // strictly scoped: only this user's chunks appear
+    const ids = new Set(hits.map((h) => h.documentId));
+    expect(ids.has(gardenDoc.id) || ids.has(nodeDoc.id)).toBe(true);
+    for (const h of hits) {
+      const owned = await prisma.documentChunk.findFirst({ where: { documentId: h.documentId, userId: user.id } });
+      expect(owned).not.toBeNull();
+    }
+  });
+
+  test('documentIds narrows the search to specific documents', async () => {
+    const { user } = await registerAndLogin();
+    const a = await makeTextDoc(user.id, 'Alpha node service.');
+    const b = await makeTextDoc(user.id, 'Bravo node service.');
+    await ragRetrieve.indexDocument(user.id, a.id);
+    await ragRetrieve.indexDocument(user.id, b.id);
+    const hits = await ragRetrieve.retrieve(user.id, 'node', { topK: 5, documentIds: [b.id] });
+    expect(hits.every((h) => h.documentId === b.id)).toBe(true);
+  });
+});
