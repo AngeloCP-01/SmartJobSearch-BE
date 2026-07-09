@@ -7,7 +7,9 @@ const { auditAts } = require('./engine/ats');
 const { matchJd } = require('./engine/match');
 const { buildSuggestions } = require('./engine/suggestions');
 const { tokenize } = require('./engine/text');
-const { aiMatch, generateTextWithFallback } = require('./engine/openrouter');
+const { aiMatch, generateTextWithFallback, generateJson } = require('./engine/openrouter');
+const { retrieve } = require('../rag/rag.service');
+const { tailoringResultSchema } = require('./analysis.schema');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
@@ -200,8 +202,78 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
   };
 }
 
+// AI-generated résumé tailoring suggestions, grounded in the user's real
+// documents via RAG. Retrieves the most JD-relevant chunks across the whole
+// corpus, feeds them as evidence, and enforces no-fabrication: an "add" that
+// isn't cited to a retrieved document is dropped server-side. Ephemeral like
+// the cover letter — nothing is stored.
+async function generateTailoringSuggestions(userId, { applicationId, documentId }) {
+  const application = await prisma.application.findFirst({
+    where: { id: applicationId, userId }, include: { company: true },
+  });
+  if (!application) throw new NotFoundError('Application not found');
+  const document = await prisma.document.findFirst({ where: { id: documentId, userId } });
+  if (!document) throw new NotFoundError('Document not found');
+
+  const jd = (application.jobDescription || '').trim();
+  if (!jd) throw new ValidationError('This application has no job description — add one to get tailoring suggestions.');
+  if (!process.env.OPENROUTER_API_KEY) throw new AppError('AI is not configured on the server.', 503, 'AI_UNAVAILABLE');
+
+  const buffer = await readBuffer(document.storageKey);
+  const { text: resumeText, ok } = await extractText(buffer, document.mimeType);
+  if (!ok) throw new ValidationError('Could not read text from that résumé (scanned PDFs and legacy .doc files are not supported).');
+
+  // RAG grounding: most JD-relevant chunks across ALL the user's documents.
+  const chunks = await retrieve(userId, jd, { topK: 8 });
+  const docs = await prisma.document.findMany({ where: { userId }, select: { id: true, name: true } });
+  const nameById = new Map(docs.map((d) => [d.id, d.name]));
+  const evidence = chunks.map((c) => ({ name: nameById.get(c.documentId) || 'a document', content: c.content }));
+  const sourceNames = new Set(evidence.map((e) => e.name.trim().toLowerCase()));
+  const evidenceBlock = evidence.length
+    ? evidence.map((e) => `[from: ${e.name}] ${e.content}`).join('\n')
+    : 'none';
+
+  const companyName = application.company?.name || 'the company';
+  const position = application.position || 'the role';
+  const system = [
+    'You are an expert résumé coach. You suggest concrete edits to make a résumé fit a specific job.',
+    'You NEVER invent experience, skills, employers, dates, or metrics.',
+    'You may only suggest ADDING something (kind "add") if it appears in the GROUNDED EVIDENCE below. Every "add" MUST set groundedIn to the exact document name it came from. If the evidence does not support a job requirement, say nothing about it — do not fabricate to fill a gap.',
+    'kind "emphasize", "rephrase", and "remove" operate only on the CURRENT RÉSUMÉ; set their groundedIn to "this résumé".',
+    'severity is "high" for gaps that clearly cost the candidate the match, "medium" for meaningful improvements, "low" for polish.',
+    'Return at most 12 suggestions, most important first.',
+    // Humanizer rules (from the "Signs of AI writing" guide):
+    'Write like a real person. Do NOT use em dashes or en dashes (use commas, periods, or parentheses), emojis, or curly quotes.',
+    'Avoid AI-tell vocabulary such as: passionate, thrilled, excited, delve, leverage, robust, dynamic, seamless, spearheaded, elevate, resonate. Prefer plain verbs.',
+  ].join(' ');
+  const user = `JOB DESCRIPTION:\n${jd}\n\nCURRENT RÉSUMÉ:\n${resumeText}\n\nGROUNDED EVIDENCE (real content from your documents):\n${evidenceBlock}`;
+
+  let result;
+  try {
+    result = await generateJson([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ], tailoringResultSchema);
+  } catch (err) {
+    console.warn(`[tailor] AI generation failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+  }
+
+  const rank = { high: 0, medium: 1, low: 2 };
+  const suggestions = result.data.suggestions
+    // No-fabrication backstop: an "add" must cite a real retrieved document.
+    .filter((s) => s.kind !== 'add' || sourceNames.has((s.groundedIn || '').trim().toLowerCase()))
+    .map((s) => ({ ...s, text: humanize(s.text), why: humanize(s.why) }))
+    .sort((a, b) => rank[a.severity] - rank[b.severity]);
+
+  return {
+    suggestions,
+    meta: { companyName, position, documentName: document.name, model: result.model, evidenceCount: evidence.length },
+  };
+}
+
 function config() {
   return { aiAvailable: Boolean(process.env.OPENROUTER_API_KEY) };
 }
 
-module.exports = { run, generateCoverLetter, list, getById, remove, config };
+module.exports = { run, generateCoverLetter, generateTailoringSuggestions, list, getById, remove, config };
