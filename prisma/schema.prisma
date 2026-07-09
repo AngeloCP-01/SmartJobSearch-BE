@@ -200,8 +200,28 @@ model Document {
   updatedAt        DateTime              @updatedAt
   applicationLinks ApplicationDocument[]
   resumeAnalyses   ResumeAnalysis[]
+  chunks           DocumentChunk[]
 
   @@index([userId])
+}
+
+// RAG: one row per embedded chunk of a Document. The `embedding` column is
+// pgvector's type, which Prisma can't represent, so it is Unsupported and all
+// reads/writes go through raw SQL. The extension lives in `public` and the type
+// is schema-qualified so it resolves under any connection search_path (the test
+// harness runs each Jest worker in its own schema — see tests/helpers/globalSetup.js).
+model DocumentChunk {
+  id         String                          @id @default(uuid())
+  documentId String
+  document   Document                        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  chunkIndex Int
+  content    String
+  embedding  Unsupported("public.vector(1024)")
+  createdAt  DateTime                        @default(now())
+
+  @@index([userId])
+  @@index([documentId])
 }
 
 model AuthoredDocument {
