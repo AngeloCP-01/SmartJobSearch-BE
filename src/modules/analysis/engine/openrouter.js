@@ -20,7 +20,12 @@ const SYSTEM = [
 ].join(' ');
 
 const DEFAULT_MODEL = 'openai/gpt-oss-120b:free';
-const TIMEOUT_MS = 40000;
+// The free primary (NVIDIA) is reliable but its latency spikes under load — an
+// observed cold/loaded call took ~80s to return valid content. A tight timeout
+// aborts that slow-but-successful primary and falls the chain through to the
+// flaky free pool (rate-limited / reasoning models that return empty content),
+// so the whole request fails. Prefer waiting on the reliable model. Env-tunable.
+const TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 90000);
 
 // An error carrying a `kind` discriminator so callers can log/handle precisely:
 //   'config'  — missing/invalid configuration (e.g. no API key)
@@ -227,6 +232,10 @@ async function withModelFallback(attempt) {
             await wait(baseMs * 2 ** (attemptN - 1)); // eslint-disable-line no-await-in-loop
             continue;
           }
+          // Log EACH abandoned model, not just the last — otherwise a chain that
+          // silently falls through its primary (e.g. NVIDIA) to a flaky free model
+          // is indistinguishable from the free model simply being slow.
+          console.warn(`[ai] model ${model} failed (kind=${err.kind}${err.status ? ` status=${err.status}` : ''}): ${err.message}`);
           break; // rate-limited (429), non-transient (parse), or out of retries → next model
         }
       }
