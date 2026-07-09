@@ -257,9 +257,17 @@ function generateTextWithFallback(messages) {
 
 // Structured JSON generation against a caller-supplied Zod schema — like
 // complete() but generic (any schema/prompt). Returns { data, model }.
+//
+// maxTokens is generous (4000) because reasoning models in the fallback chain
+// (e.g. gpt-oss) spend a variable, sometimes large number of hidden reasoning
+// tokens BEFORE emitting any content. With a tight budget a high-reasoning run
+// exhausts it mid-thought and returns empty content, which surfaces as a 'parse'
+// error and fails the whole request. The headroom lets reasoning + the JSON
+// answer both fit. Env-overridable for tuning without a code change.
+const JSON_MAX_TOKENS = Number(process.env.OPENROUTER_JSON_MAX_TOKENS || 4000);
 async function generateJsonOnce(messages, schema, modelArg) {
   const model = modelArg || parseModels()[0];
-  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: 1500 });
+  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: JSON_MAX_TOKENS });
   try {
     return { data: schema.parse(JSON.parse(extractJson(content))), model };
   } catch (e) {
