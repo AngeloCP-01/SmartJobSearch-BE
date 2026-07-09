@@ -48,7 +48,18 @@ async function reindexAll(userId) {
 // Retrieve the top-K chunks most similar to queryText for this user (cosine).
 // Always userId-scoped; optional documentIds narrows to specific documents.
 async function retrieve(userId, queryText, { topK = 6, documentIds } = {}) {
-  const [qvec] = await embed([queryText], 'query');
+  // The embedding model caps input at 512 tokens; a long query (e.g. a full job
+  // description) exceeds it. Chunk the query with the same char bound used for
+  // indexed passages (overlap off — pointless for a query) and mean-pool the
+  // chunk vectors into one query vector. Chunks are <= targetChars and tokens
+  // <= chars, so no embed input can exceed the model limit.
+  const parts = chunkText(queryText, { overlapSentences: 0 });
+  if (!parts.length) return [];
+  const vecs = await embed(parts, 'query');
+  const dim = vecs[0].length;
+  const qvec = vecs.length === 1
+    ? vecs[0]
+    : Array.from({ length: dim }, (_, i) => vecs.reduce((sum, v) => sum + v[i], 0) / vecs.length);
   const q = vecLiteral(qvec);
   const filter = documentIds && documentIds.length
     ? Prisma.sql`AND "documentId" = ANY(${documentIds})`
