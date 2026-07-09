@@ -388,3 +388,22 @@ test('tailor surfaces a friendly 503 when the AI service fails', async () => {
     delete process.env.OPENROUTER_API_KEY;
   }
 });
+
+test('tailor surfaces a friendly 503 when RAG retrieval fails', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  retrieve.mockRejectedValue(Object.assign(new Error('pgvector down'), { kind: 'db' }));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const { token } = await registerAndLogin();
+    const appId = await makeApp(token, 'Node.js and PostgreSQL.');
+    const docId = await uploadResume(token);
+    const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+    expect(res.status).toBe(503);
+    expect(generateJson).not.toHaveBeenCalled();
+  } finally {
+    warn.mockRestore();
+    delete process.env.OPENROUTER_API_KEY;
+  }
+});

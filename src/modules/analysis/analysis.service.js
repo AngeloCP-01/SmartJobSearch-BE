@@ -223,7 +223,13 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
   if (!ok) throw new ValidationError('Could not read text from that résumé (scanned PDFs and legacy .doc files are not supported).');
 
   // RAG grounding: most JD-relevant chunks across ALL the user's documents.
-  const chunks = await retrieve(userId, jd, { topK: 8 });
+  let chunks;
+  try {
+    chunks = await retrieve(userId, jd, { topK: 8 });
+  } catch (err) {
+    console.warn(`[tailor] retrieval failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    throw new AppError('Could not build tailoring suggestions right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+  }
   const docs = await prisma.document.findMany({ where: { userId }, select: { id: true, name: true } });
   const nameById = new Map(docs.map((d) => [d.id, d.name]));
   const evidence = chunks.map((c) => ({ name: nameById.get(c.documentId) || 'a document', content: c.content }));
