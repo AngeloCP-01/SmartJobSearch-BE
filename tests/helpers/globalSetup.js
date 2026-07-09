@@ -21,6 +21,10 @@ module.exports = async (globalConfig) => {
   const { PrismaClient } = require('@prisma/client');
   const admin = new PrismaClient({ datasources: { db: { url: baseUrl } } });
   try {
+    // Install pgvector once in `public` up front so the parallel per-worker
+    // migrations below don't race on CREATE EXTENSION (and so `public.vector`
+    // resolves from every worker schema).
+    await admin.$executeRawUnsafe('CREATE EXTENSION IF NOT EXISTS vector SCHEMA public');
     for (const s of schemas) {
       await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${s}" CASCADE`);
       await admin.$executeRawUnsafe(`CREATE SCHEMA "${s}"`);
