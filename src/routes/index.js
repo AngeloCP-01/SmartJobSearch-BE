@@ -13,6 +13,7 @@ const analysisRoutes = require('../modules/analysis/analysis.routes');
 const postingsRoutes = require('../modules/postings/postings.routes');
 const authoredDocumentsRoutes = require('../modules/authored-documents/authored-documents.routes');
 const imagesRoutes = require('../modules/images/images.routes');
+const ragRoutes = require('../modules/rag/rag.routes');
 
 const { version } = require('../../package.json');
 const commit = process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || 'dev';
@@ -35,5 +36,6 @@ router.use('/analysis', analysisRoutes);
 router.use('/postings', postingsRoutes);
 router.use('/authored-documents', authoredDocumentsRoutes);
 router.use('/images', imagesRoutes);
+router.use('/rag', ragRoutes);
 
 module.exports = router;

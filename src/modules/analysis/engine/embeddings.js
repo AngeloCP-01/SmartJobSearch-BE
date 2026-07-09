@@ -7,7 +7,12 @@ function embeddingSpec() { return process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDI
 
 // True when the configured embedding provider has an API key — used to gate
 // index-on-upload so environments without a key (e.g. tests) skip embedding.
-function embeddingConfigured() { return Boolean(resolveProvider(embeddingSpec()).key); }
+// Optional-chained: some test files auto-mock the sibling `./openrouter` module
+// wholesale (jest.mock with no factory), which turns `resolveProvider` into a
+// jest.fn() returning undefined — this must degrade to "not configured" rather
+// than throw, since this is a cross-cutting gate called from unrelated flows
+// (e.g. document upload) that have no reason to know about that mock.
+function embeddingConfigured() { return Boolean(resolveProvider(embeddingSpec())?.key); }
 
 // Embed an array of texts. `inputType` is required by the asymmetric model:
 // 'passage' for indexed content, 'query' for a search string. Returns one vector

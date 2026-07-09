@@ -88,3 +88,25 @@ describe('retrieve', () => {
     expect(hits.every((h) => h.documentId === b.id)).toBe(true);
   });
 });
+
+const { agent } = require('./helpers/testApp');
+const auth = (t) => ({ Authorization: `Bearer ${t}` });
+
+describe('rag endpoints', () => {
+  test('POST /api/rag/reindex indexes the user documents; GET /api/rag/search returns hits', async () => {
+    const { user, token } = await registerAndLogin();
+    await makeTextDoc(user.id, 'Senior Node.js backend engineer, PostgreSQL, Docker, CI/CD.');
+    const re = await agent().post('/api/rag/reindex').set(auth(token));
+    expect(re.status).toBe(200);
+    expect(re.body.chunks).toBeGreaterThan(0);
+    const search = await agent().get('/api/rag/search').query({ q: 'node backend' }).set(auth(token));
+    expect(search.status).toBe(200);
+    expect(Array.isArray(search.body.hits)).toBe(true);
+    expect(search.body.hits.length).toBeGreaterThan(0);
+  });
+
+  test('search requires authentication', async () => {
+    const res = await agent().get('/api/rag/search').query({ q: 'x' });
+    expect(res.status).toBe(401);
+  });
+});

@@ -4,6 +4,8 @@ const storage = require('../../shared/storage');
 const { NotFoundError, ConflictError } = require('../../shared/utils/errors');
 const activity = require('../activity/activity.service');
 const { extractRich } = require('../analysis/engine/extract');
+const { indexDocument } = require('../rag/rag.service');
+const { embeddingConfigured } = require('../analysis/engine/embeddings');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -27,13 +29,17 @@ async function create(userId, { name, type, notes }, file) {
   const storageKey = `${userId}/${crypto.randomUUID()}-${sanitize(file.originalname)}`;
   await storage.save(file.buffer, storageKey);
   try {
-    return await prisma.document.create({
+    const doc = await prisma.document.create({
       data: {
         userId, name, type, notes,
         originalFilename: file.originalname, mimeType: file.mimetype, sizeBytes: file.size, storageKey,
       },
       select: publicSelect,
     });
+    if (embeddingConfigured()) {
+      indexDocument(userId, doc.id).catch((err) => console.warn(`[rag] index-on-upload failed for ${doc.id}: ${err.message}`));
+    }
+    return doc;
   } catch (e) {
     // Don't leak an orphaned blob if the DB insert fails after the file was written.
     await storage.remove(storageKey).catch(() => {});
