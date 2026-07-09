@@ -1,7 +1,7 @@
 const prisma = require('../../shared/database/prisma');
 const storage = require('../../shared/storage');
 const { NotFoundError, ValidationError, AppError } = require('../../shared/utils/errors');
-const { analysisReportSchema } = require('./analysis.schema');
+const { analysisReportSchema, tailoringResultSchema } = require('./analysis.schema');
 const { extractText } = require('./engine/extract');
 const { auditAts } = require('./engine/ats');
 const { matchJd } = require('./engine/match');
@@ -9,7 +9,6 @@ const { buildSuggestions } = require('./engine/suggestions');
 const { tokenize } = require('./engine/text');
 const { aiMatch, generateTextWithFallback, generateJson } = require('./engine/openrouter');
 const { retrieve } = require('../rag/rag.service');
-const { tailoringResultSchema } = require('./analysis.schema');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
@@ -228,7 +227,10 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
   const docs = await prisma.document.findMany({ where: { userId }, select: { id: true, name: true } });
   const nameById = new Map(docs.map((d) => [d.id, d.name]));
   const evidence = chunks.map((c) => ({ name: nameById.get(c.documentId) || 'a document', content: c.content }));
-  const sourceNames = new Set(evidence.map((e) => e.name.trim().toLowerCase()));
+  // Only REAL document names gate the no-fabrication backstop — never the display placeholder.
+  const sourceNames = new Set(
+    chunks.map((c) => nameById.get(c.documentId)).filter(Boolean).map((n) => n.trim().toLowerCase()),
+  );
   const evidenceBlock = evidence.length
     ? evidence.map((e) => `[from: ${e.name}] ${e.content}`).join('\n')
     : 'none';

@@ -306,6 +306,30 @@ test('tailor drops an "add" suggestion not grounded in a retrieved document (no 
   delete process.env.OPENROUTER_API_KEY;
 });
 
+test('tailor does not let the display placeholder ("a document") bypass the no-fabrication filter', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need Go.');
+  const docId = await uploadResume(token);
+  // Retrieved chunk points at a documentId with no matching Document row (orphaned) →
+  // its display name is the "a document" placeholder, which must NOT gate the backstop.
+  retrieve.mockResolvedValue([{ documentId: '00000000-0000-0000-0000-000000000000', content: 'Go microservices.', similarity: 0.7 }]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [
+      { kind: 'add', text: 'Add Go microservices.', why: 'JD wants Go.', groundedIn: 'a document', severity: 'high' },
+      { kind: 'emphasize', text: 'Emphasize backend work.', why: 'Adjacent.', groundedIn: 'this résumé', severity: 'low' },
+    ] },
+  });
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  expect(res.body.suggestions).toHaveLength(1);
+  expect(res.body.suggestions[0].kind).toBe('emphasize');
+  delete process.env.OPENROUTER_API_KEY;
+});
+
 test('tailor still returns suggestions when retrieval is empty', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   generateJson.mockReset();
