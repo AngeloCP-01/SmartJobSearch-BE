@@ -530,8 +530,10 @@ async function indexDocument(userId, documentId) {
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`DELETE FROM "DocumentChunk" WHERE "documentId" = ${documentId}`;
     for (let i = 0; i < chunks.length; i += 1) {
+      // pgvector lives in `public`; qualify the cast — `public` is not on the
+      // per-worker test schema search_path (see Task 3).
       await tx.$executeRaw`INSERT INTO "DocumentChunk" ("id","documentId","userId","chunkIndex","content","embedding","createdAt")
-        VALUES (${crypto.randomUUID()}, ${documentId}, ${userId}, ${i}, ${chunks[i]}, ${vecLiteral(vectors[i])}::vector, now())`;
+        VALUES (${crypto.randomUUID()}, ${documentId}, ${userId}, ${i}, ${chunks[i]}, ${vecLiteral(vectors[i])}::public.vector, now())`;
     }
   });
   return { chunks: chunks.length };
@@ -631,11 +633,13 @@ async function retrieve(userId, queryText, { topK = 6, documentIds } = {}) {
   const filter = documentIds && documentIds.length
     ? Prisma.sql`AND "documentId" = ANY(${documentIds})`
     : Prisma.empty;
+  // Qualify the cast + distance operator — pgvector is in `public`, which is not
+  // on the per-worker test schema search_path (see Task 3).
   return prisma.$queryRaw`
-    SELECT "documentId", content, 1 - (embedding <=> ${q}::vector) AS similarity
+    SELECT "documentId", content, 1 - (embedding OPERATOR(public.<=>) ${q}::public.vector) AS similarity
     FROM "DocumentChunk"
     WHERE "userId" = ${userId} ${filter}
-    ORDER BY embedding <=> ${q}::vector
+    ORDER BY embedding OPERATOR(public.<=>) ${q}::public.vector
     LIMIT ${topK}`;
 }
 
