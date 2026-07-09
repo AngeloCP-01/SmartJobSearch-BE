@@ -20,12 +20,12 @@ const SYSTEM = [
 ].join(' ');
 
 const DEFAULT_MODEL = 'openai/gpt-oss-120b:free';
-// The free primary (NVIDIA) is reliable but its latency spikes under load — an
-// observed cold/loaded call took ~80s to return valid content. A tight timeout
-// aborts that slow-but-successful primary and falls the chain through to the
-// flaky free pool (rate-limited / reasoning models that return empty content),
-// so the whole request fails. Prefer waiting on the reliable model. Env-tunable.
-const TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 90000);
+// The free primary (NVIDIA) has spiky latency (observed 80-156s under load).
+// 60s gives it a fair shot on a normal/moderately-slow response, then abandons
+// it for the next model rather than hanging. A timed-out model is NOT retried on
+// itself (see isRetryableSameModel) — it fell through to the next model instead,
+// so the chain doesn't burn attempts x timeout on one slow endpoint. Env-tunable.
+const TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 60000);
 
 // An error carrying a `kind` discriminator so callers can log/handle precisely:
 //   'config'  — missing/invalid configuration (e.g. no API key)
@@ -190,9 +190,13 @@ async function generateText(messages, modelArg) {
 // usually clears in milliseconds. A 429 is deliberately excluded: the provider
 // is rate-limited (Retry-After is typically seconds), so trying a DIFFERENT
 // model immediately beats waiting. 429 falls through to the next model instead.
+// A 'timeout' is likewise excluded: if a model did not answer within the (tens
+// of seconds) window it is overloaded, and retrying the SAME slow endpoint just
+// burns another full window — fall through to the next model, which for free
+// tiers is the difference between a ~2 minute wait and a ~5 minute one.
 const RETRYABLE_HTTP = new Set([500, 502, 503, 504]);
 function isRetryableSameModel(err) {
-  return err.kind === 'timeout' || err.kind === 'network'
+  return err.kind === 'network'
     || (err.kind === 'http' && RETRYABLE_HTTP.has(err.status));
 }
 // Fatal = pointless to try anything else (same key/config fails for every model).

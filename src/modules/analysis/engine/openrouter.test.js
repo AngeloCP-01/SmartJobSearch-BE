@@ -145,6 +145,19 @@ test('a 429 is NOT retried on the same model — it falls straight to the next',
   expect(calls['a/model:free']).toBe(1); // rate-limited model tried once, not retried
 });
 
+test('a timeout is NOT retried on the same model — it falls straight to the next', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free, b/model:free';
+  const calls = {};
+  global.fetch = jest.fn().mockImplementation((url, opts) => {
+    const m = modelOf(opts); calls[m] = (calls[m] || 0) + 1;
+    if (m === 'a/model:free') { const e = new Error('The operation was aborted'); e.name = 'AbortError'; return Promise.reject(e); }
+    return Promise.resolve(EMPTY_OK);
+  });
+  const r = await completeWithFallback('r', 'j');
+  expect(r.model).toBe('b/model:free');
+  expect(calls['a/model:free']).toBe(1); // slow/timed-out model tried once, not retried
+});
+
 test('stops immediately on a fatal auth error without trying other models', async () => {
   process.env.OPENROUTER_MODEL = 'a/model:free, b/model:free';
   global.fetch = jest.fn().mockResolvedValue(errResponse(401, 'no credits'));
