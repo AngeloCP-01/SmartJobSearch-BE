@@ -8,3 +8,10 @@ build/
 .DS_Store
 .env.test
 .env.prod
+
+# Local résumé sample artifacts for manual extractRich testing (not source)
+docs/*.docx
+docs/*.pdf
+
+# SDD scratch (briefs/reports/review packages/progress ledger)
+.superpowers/

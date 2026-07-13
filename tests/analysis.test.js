@@ -11,6 +11,8 @@ const { aiMatch, generateTextWithFallback, generateJson } = require('../src/modu
 jest.mock('../src/modules/rag/rag.service');
 const { retrieve, indexDocument } = require('../src/modules/rag/rag.service');
 
+const { tailoringResultSchema } = require('../src/modules/analysis/analysis.schema');
+
 const { agent } = require('./helpers/testApp');
 const { prisma, resetDb } = require('./helpers/db');
 const { registerAndLogin } = require('./helpers/auth');
@@ -281,6 +283,31 @@ test('tailor returns grounded suggestions and calls retrieve with the JD', async
   delete process.env.OPENROUTER_API_KEY;
 });
 
+test('tailor returns the verbatim anchor per suggestion (add anchor is empty)', async () => {
+  process.env.OPENROUTER_API_KEY = 'k';
+  generateJson.mockReset();
+  retrieve.mockReset();
+  const { token } = await registerAndLogin();
+  const appId = await makeApp(token, 'We need PostgreSQL.');
+  const docId = await uploadResume(token);
+
+  retrieve.mockResolvedValue([{ documentId: docId, content: 'x', similarity: 0.9 }]);
+  generateJson.mockResolvedValue({
+    model: 'test/model:free',
+    data: { suggestions: [
+      { kind: 'rephrase', text: 'Use "architected" instead of "built".', why: 'Stronger verb.', groundedIn: 'this résumé', anchor: 'led team — 5 engineers', severity: 'low' },
+      { kind: 'add', text: 'Mention Docker.', why: 'The JD asks for it.', groundedIn: 'My Resume', anchor: '', severity: 'high' },
+    ] },
+  });
+
+  const res = await agent().post('/api/analysis/tailor').set(auth(token)).send({ applicationId: appId, documentId: docId });
+  expect(res.status).toBe(201);
+  const byKind = Object.fromEntries(res.body.suggestions.map((s) => [s.kind, s]));
+  expect(byKind.rephrase.anchor).toBe('led team — 5 engineers'); // verbatim, not humanized
+  expect(byKind.add.anchor).toBe('');
+  delete process.env.OPENROUTER_API_KEY;
+});
+
 test('tailor drops an "add" suggestion not grounded in a retrieved document (no fabrication)', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   generateJson.mockReset();
@@ -406,4 +433,13 @@ test('tailor surfaces a friendly 503 when RAG retrieval fails', async () => {
     warn.mockRestore();
     delete process.env.OPENROUTER_API_KEY;
   }
+});
+
+test('tailoringResultSchema normalizes a null or missing anchor to an empty string', () => {
+  const parsed = tailoringResultSchema.parse({ suggestions: [
+    { kind: 'add', text: 't', why: 'w', groundedIn: 'My Resume', anchor: null, severity: 'high' },
+    { kind: 'rephrase', text: 't2', why: 'w2', groundedIn: 'this résumé', severity: 'low' }, // anchor omitted
+  ] });
+  expect(parsed.suggestions[0].anchor).toBe('');
+  expect(parsed.suggestions[1].anchor).toBe('');
 });
