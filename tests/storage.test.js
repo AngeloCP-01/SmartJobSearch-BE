@@ -36,3 +36,19 @@ test('removes a stored file', async () => {
 test('remove is a no-op when the file is missing', async () => {
   await expect(storage.remove('user-1/never.pdf')).resolves.toBeUndefined();
 });
+
+test('readBuffer reads a stored object into one buffer', async () => {
+  const buf = Buffer.from('resume bytes here');
+  await storage.save(buf, 'user-1/read-me.pdf');
+  const got = await storage.readBuffer('user-1/read-me.pdf');
+  expect(got.equals(buf)).toBe(true);
+});
+
+test('readBuffer surfaces a read failure as a friendly 503 (not a raw 500)', async () => {
+  // A missing object (like a paused/misconfigured object store returning an
+  // unreadable response) must not bubble up as a generic "Internal server error".
+  await expect(storage.readBuffer('user-1/does-not-exist.pdf')).rejects.toMatchObject({
+    status: 503,
+    code: 'STORAGE_UNAVAILABLE',
+  });
+});

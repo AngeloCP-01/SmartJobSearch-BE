@@ -6,13 +6,6 @@ const { extractText } = require('../analysis/engine/extract');
 const { chunkText } = require('../analysis/engine/chunk');
 const { embed } = require('../analysis/engine/embeddings');
 
-function readBuffer(key) {
-  return new Promise((resolve, reject) => {
-    const parts = [];
-    storage.createReadStream(key).on('data', (d) => parts.push(d)).on('end', () => resolve(Buffer.concat(parts))).on('error', reject);
-  });
-}
-
 const vecLiteral = (arr) => `[${arr.join(',')}]`;
 
 // Index one document: extract -> chunk -> embed(passage) -> replace its chunks in
@@ -21,7 +14,7 @@ const vecLiteral = (arr) => `[${arr.join(',')}]`;
 async function indexDocument(userId, documentId) {
   const doc = await prisma.document.findFirst({ where: { id: documentId, userId } });
   if (!doc) return { chunks: 0 };
-  const buffer = await readBuffer(doc.storageKey);
+  const buffer = await storage.readBuffer(doc.storageKey);
   const { text, ok } = await extractText(buffer, doc.mimeType);
   const chunks = ok ? chunkText(text) : [];
   const vectors = chunks.length ? await embed(chunks, 'passage') : [];

@@ -15,15 +15,6 @@ const publicSelect = {
 
 const sanitize = (name) => name.replace(/[^\w.\-]+/g, '_').slice(0, 120);
 
-function readBuffer(key) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    storage.createReadStream(key)
-      .on('data', (c) => chunks.push(c))
-      .on('end', () => resolve(Buffer.concat(chunks)))
-      .on('error', reject);
-  });
-}
 
 async function create(userId, { name, type, notes }, file) {
   const storageKey = `${userId}/${crypto.randomUUID()}-${sanitize(file.originalname)}`;
@@ -72,7 +63,7 @@ async function getForDownload(userId, id) {
 
 async function getText(userId, id) {
   const doc = await assertDocument(userId, id);
-  const buffer = await readBuffer(doc.storageKey);
+  const buffer = await storage.readBuffer(doc.storageKey);
   return extractRich(buffer, doc.mimeType); // { ok, kind: 'html'|'text', content }
 }
 

@@ -12,16 +12,6 @@ const { retrieve } = require('../rag/rag.service');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
-function readBuffer(key) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    storage.createReadStream(key)
-      .on('data', (c) => chunks.push(c))
-      .on('end', () => resolve(Buffer.concat(chunks)))
-      .on('error', reject);
-  });
-}
-
 // Deterministic sweep over generated prose to remove the mechanical "signs of AI
 // writing" (from the humanizer skill) that a model still leaks even when the
 // prompt forbids them: em/en dashes (§14), emojis (§18), and curly quotes (§19).
@@ -52,7 +42,7 @@ async function run(userId, { applicationId, documentId, useAi }) {
   const document = await prisma.document.findFirst({ where: { id: documentId, userId } });
   if (!document) throw new NotFoundError('Document not found');
 
-  const buffer = await readBuffer(document.storageKey);
+  const buffer = await storage.readBuffer(document.storageKey);
   const { text, ok } = await extractText(buffer, document.mimeType);
 
   const ats = auditAts(text, { mimeType: document.mimeType });
@@ -165,7 +155,7 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
   if (!jd) throw new ValidationError('This application has no job description — add one to generate a tailored cover letter.');
   if (!process.env.OPENROUTER_API_KEY) throw new AppError('AI is not configured on the server.', 503, 'AI_UNAVAILABLE');
 
-  const buffer = await readBuffer(document.storageKey);
+  const buffer = await storage.readBuffer(document.storageKey);
   const { text: resumeText, ok } = await extractText(buffer, document.mimeType);
   if (!ok) throw new ValidationError('Could not read text from that résumé (scanned PDFs and legacy .doc files are not supported).');
 
@@ -218,7 +208,7 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
   if (!jd) throw new ValidationError('This application has no job description — add one to get tailoring suggestions.');
   if (!process.env.OPENROUTER_API_KEY) throw new AppError('AI is not configured on the server.', 503, 'AI_UNAVAILABLE');
 
-  const buffer = await readBuffer(document.storageKey);
+  const buffer = await storage.readBuffer(document.storageKey);
   const { text: resumeText, ok } = await extractText(buffer, document.mimeType);
   if (!ok) throw new ValidationError('Could not read text from that résumé (scanned PDFs and legacy .doc files are not supported).');
 
