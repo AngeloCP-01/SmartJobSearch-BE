@@ -1,13 +1,13 @@
 # JobTrail — API
 
-Modular-monolith REST API for JobTrail, a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, and an **AI-assisted résumé/ATS analysis** engine.
+Modular-monolith REST API for JobTrail, a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, an **AI-assisted résumé/ATS analysis** engine, AI cover letters, **RAG-grounded résumé tailoring**, and an in-app rich-text **document editor**.
 
 [![Backend CI](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml/badge.svg)](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml)
 &nbsp;**[▶ Live demo](https://jobtrail-hq.vercel.app)** · **[Frontend repo](https://github.com/AngeloCP-01/SmartJobSearch-FE)** · **[Deploy guide](./DEPLOY.md)**
 
 ## Stack
 
-Node.js · Express · PostgreSQL (Prisma) · JWT (access + httpOnly refresh cookie) · Zod · OpenRouter (AI) · Jest + Supertest. Deployed on Render + Neon + Supabase Storage.
+Node.js · Express · PostgreSQL (Prisma) · JWT (access + httpOnly refresh cookie) · Zod · multi-provider LLM routing (NVIDIA NIM + OpenRouter) · pgvector (RAG) · Jest + Supertest. Deployed on Render + Neon + Supabase Storage.
 
 ## Architecture
 
@@ -17,10 +17,11 @@ A **modular monolith** — one module per domain, each with its own `routes → 
 src/
   modules/
     auth/ companies/ applications/ interviews/ contacts/
-    documents/ activity/ analysis/ postings/ reminders/ dashboard/
+    documents/ authored-documents/ images/ activity/ analysis/ rag/
+    postings/ reminders/ dashboard/
   shared/
     database/   (Prisma client singleton)
-    storage/    (save/createReadStream/remove — local-disk or S3 driver)
+    storage/    (save/createReadStream/remove/readBuffer — local-disk or S3 driver)
     middleware/ utils/
   routes/index.js   app.js   server.js
 prisma/schema.prisma   prisma/seed.js
@@ -30,8 +31,9 @@ tests/
 ### Engineering highlights
 
 - **Resilient auth** — short-lived access JWT + rotating refresh token in an httpOnly cookie; cross-site `SameSite=None; Secure` in production.
-- **AI with a safety net** — the analysis engine tries a chain of LLM models, **fast-fails on 429 rate limits** to the next model, and falls back to a deterministic keyword matcher so the feature never hard-fails. Reports are validated with Zod.
-- **Swappable storage** — a `save/createReadStream/remove` interface backs both local disk (dev) and S3-compatible object storage (prod, e.g. Supabase/R2) so uploads survive an ephemeral-disk host. Chosen by one env var; no caller changes.
+- **AI with a safety net** — a `<provider>:`-prefixed model chain spans **NVIDIA NIM + OpenRouter**, fast-fails on 429 rate-limits / timeouts to the next model, and the ATS analysis falls back to a deterministic keyword matcher so it never hard-fails; all outputs are Zod-validated.
+- **RAG-grounded tailoring** — résumé-tailoring suggestions are retrieved from the user's own documents via **pgvector** (NVIDIA embeddings, HNSW cosine, `userId`-scoped) with a **no-fabrication backstop** so the model can't invent experience.
+- **Swappable storage** — a `save/createReadStream/remove/readBuffer` interface backs both local disk (dev) and S3-compatible object storage (prod, e.g. Supabase/R2) so uploads survive an ephemeral-disk host. Chosen by one env var; no caller changes. A read failure surfaces as a friendly **503**, not a raw 500.
 - **Per-user isolation** — every query is scoped to the authenticated user; tests assert one user can’t read/modify another’s data.
 
 ## Data model
