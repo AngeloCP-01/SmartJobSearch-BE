@@ -124,6 +124,7 @@ Open the Vercel URL and confirm:
 - **CORS errors / login "works" but you get logged out:** almost always `CORS_ORIGIN` not matching the Vercel origin exactly, or `NODE_ENV` not `production` (so the cookie stays `SameSite=Lax` and isn't sent cross-site). Both are handled when the env is set correctly.
 - **Vite env is build-time:** changing `VITE_API_URL` requires a redeploy, not just a restart.
 - **Migrations:** handled automatically by `prisma migrate deploy` in the start command. New migrations ship on the next deploy.
+- **⚠️ Supabase Storage auto-pauses (bit us 2026-07-13):** the free Supabase project pauses after ~7 days of **inactivity on Supabase itself**. Since the DB is on Neon and Supabase is used *only* for file storage, normal app use (auth, board, dashboard — all Neon) never touches Supabase, so it pauses even while JobTrail is actively used. A paused project's S3 endpoint returns non-XML, so `@aws-sdk` throws `XML parse error: unexpected content` and every file-read feature (analysis, cover letter, Tailor Résumé, Draft-in-Editor, doc download) fails. **Fix:** resume the project in the Supabase dashboard. **Prevent:** move storage to **Cloudflare R2** (doesn't auto-pause; same S3 driver, just swap `S3_*` env — `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `S3_REGION=auto`), or add an external cron that touches the bucket every few days. (Read failures now surface as a friendly 503 `STORAGE_UNAVAILABLE` instead of a raw 500.)
 
 ## Alternative: one paid host (~$5/mo, no cold start)
 
