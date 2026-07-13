@@ -21,7 +21,7 @@ const tailoringSuggestionSchema = z.object({
   text: z.string(),
   why: z.string(),
   groundedIn: z.string(),
-  anchor: z.string().optional().default(''), // verbatim résumé snippet; '' for add
+  anchor: z.string().nullable().optional().transform((v) => v ?? ''), // verbatim résumé snippet; '' for add
   severity: z.enum(['high', 'medium', 'low']),
 });
 
