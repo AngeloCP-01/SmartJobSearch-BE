@@ -39,8 +39,25 @@ services:
         sync: false
       - key: S3_SECRET_ACCESS_KEY
         sync: false
-      # Optional AI layer — leave unset to keep résumé analysis deterministic.
+      # AI layer. OPENROUTER_API_KEY gates the AI features on/off (the Tailor
+      # and cover-letter endpoints 503 without it) — leave unset to keep résumé
+      # analysis deterministic. The model chain routes to NVIDIA first, so
+      # NVIDIA_OPENAI_KEY is REQUIRED for both the fast AI chain AND RAG
+      # embeddings (embeddingConfigured() === Boolean(NVIDIA_OPENAI_KEY); without
+      # it, Tailor Résumé / Draft-in-Editor and doc indexing do not work).
       - key: OPENROUTER_API_KEY
         sync: false
+      # Stabilized all-NVIDIA chain (2026-07-13): reliable, fast (~3-6s), no
+      # timeout-prone free-tier fallbacks. Set this exact value in the dashboard.
       - key: OPENROUTER_MODEL
+        value: nvidia:openai/gpt-oss-120b,nvidia:meta/llama-3.1-70b-instruct,nvidia:meta/llama-3.1-8b-instruct
+      - key: NVIDIA_OPENAI_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      # RAG embeddings model (NVIDIA NIM). Has a code default; declared for clarity.
+      - key: EMBEDDING_MODEL
+        value: nvidia:nvidia/nv-embedqa-e5-v5
+      # Public base URL of THIS API incl. /api — for absolute editor image URLs.
+      - key: PUBLIC_API_URL
         sync: false

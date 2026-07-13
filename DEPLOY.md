@@ -70,7 +70,11 @@ The repo includes **`render.yaml`** (a Blueprint), so the service + env keys are
    - `CORS_ORIGIN` → your Vercel URL from step 4 (you can put a placeholder now and fix it after step 4 — e.g. `https://smartjobsearch.vercel.app`). **No trailing slash.**
    - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` (`documents`), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` → from step 2.
    - `PUBLIC_API_URL` → **required for editor images.** The API's own public base incl. `/api`, e.g. `https://smartjobsearch-api.onrender.com/api`. Used to build absolute `<img>` URLs for in-editor images. If unset it falls back to the request host header (works locally, but set it explicitly in prod so image URLs are stable and not derived from a client-controlled `Host`).
-   - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` → optional (leave blank to keep résumé analysis deterministic).
+   - **AI + RAG (needed for ATS "Use AI", cover letters, Tailor Résumé, and Draft-in-Editor).** Leave all AI vars blank to keep résumé analysis deterministic (those features degrade gracefully). To enable them:
+     - `OPENROUTER_API_KEY` → your OpenRouter key. **This gates the AI features on/off** — the Tailor and cover-letter endpoints 503 without it, even though calls route to NVIDIA.
+     - `NVIDIA_OPENAI_KEY` → your NVIDIA NIM key (build.nvidia.com). **Required** — the model chain and RAG embeddings both route to NVIDIA. Without it, Tailor Résumé / Draft-in-Editor and document indexing do not work (`embeddingConfigured()` === `Boolean(NVIDIA_OPENAI_KEY)`).
+     - `OPENROUTER_MODEL` → already declared in `render.yaml` as the stabilized all-NVIDIA chain (`nvidia:openai/gpt-oss-120b,nvidia:meta/llama-3.1-70b-instruct,nvidia:meta/llama-3.1-8b-instruct`); `EMBEDDING_MODEL` and `NVIDIA_BASE_URL` likewise have blueprint defaults. No dashboard action needed unless overriding.
+     - After the first deploy with these keys set, **backfill RAG once** so existing documents become searchable (the index-on-upload hook only covers new uploads): authenticate and `POST /api/rag/reindex`.
    - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` → leave to **auto-generate** (declared `generateValue: true`).
    - `STORAGE_DRIVER` is already `s3`; `NODE_ENV` is already `production`.
 4. Deploy. Build runs `npm install && prisma generate`; start runs `prisma migrate deploy && node src/server.js`.
@@ -109,6 +113,7 @@ Open the Vercel URL and confirm:
 - [ ] **Upload** a résumé in Documents, then **download** it → bytes come back (proves Supabase Storage).
 - [ ] Trigger a **redeploy** on Render, then download the same file again → still works (proves uploads aren't on ephemeral disk).
 - [ ] Run a **résumé analysis** → report renders.
+- [ ] (If AI enabled) Toggle **Use AI** on an analysis, generate a **cover letter**, and run **Tailor Résumé** → suggestions render (proves `OPENROUTER_API_KEY` + `NVIDIA_OPENAI_KEY` + the model chain). Then **Draft in Editor** → the résumé opens and clicking a suggestion highlights it (proves RAG anchors + the editor flow).
 
 ---
 
