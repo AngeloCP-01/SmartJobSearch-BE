@@ -8,12 +8,21 @@ const loadFresh = () => {
   return mod;
 };
 
+const ENV_KEYS = ['SENTRY_DSN', 'SENTRY_TRACES_SAMPLE_RATE', 'RENDER_GIT_COMMIT', 'COMMIT_SHA', 'NODE_ENV'];
+let savedEnv;
+
+beforeEach(() => {
+  savedEnv = {};
+  for (const k of ENV_KEYS) { savedEnv[k] = process.env[k]; delete process.env[k]; }
+});
+
 afterEach(() => {
   mockInit.mockReset();
   mockCapture.mockReset();
-  delete process.env.SENTRY_DSN;
-  delete process.env.SENTRY_TRACES_SAMPLE_RATE;
-  delete process.env.RENDER_GIT_COMMIT;
+  for (const k of ENV_KEYS) {
+    if (savedEnv[k] === undefined) delete process.env[k];
+    else process.env[k] = savedEnv[k];
+  }
 });
 
 test('initSentry is a no-op when SENTRY_DSN is unset', () => {
