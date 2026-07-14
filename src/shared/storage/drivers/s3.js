@@ -9,7 +9,7 @@
 // Most non-AWS providers require path-style addressing (default on here).
 const { PassThrough } = require('stream');
 const {
-  S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand,
+  S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand,
 } = require('@aws-sdk/client-s3');
 
 const bucket = process.env.S3_BUCKET;
@@ -48,4 +48,12 @@ async function remove(key) {
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
-module.exports = { save, createReadStream, remove };
+// Health probe: a HeadBucket confirms credentials + the bucket are reachable
+// without transferring any object. Rejects (surfaced as an unhealthy check) on
+// any auth/network/paused-store failure.
+async function ping() {
+  await client.send(new HeadBucketCommand({ Bucket: bucket }));
+  return true;
+}
+
+module.exports = { save, createReadStream, remove, ping };
