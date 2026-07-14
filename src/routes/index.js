@@ -23,10 +23,6 @@ const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok', version }));
 router.get('/version', (req, res) => res.json({ version, commit, uptime: Math.round(process.uptime()) }));
-// TEMPORARY — remove after verifying Sentry in prod. Throws a real non-AppError
-// so the deployed backend's errorHandler → captureError path fires a genuine
-// Sentry event (confirms init + capture + scrubbing end-to-end). See obs P1 step 5.
-router.get('/debug/boom', () => { throw new Error('Sentry prod wiring test'); });
 router.use('/', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/companies', companiesRoutes);
