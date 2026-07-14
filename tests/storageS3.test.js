@@ -8,6 +8,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
   PutObjectCommand: jest.fn((input) => ({ kind: 'put', input })),
   GetObjectCommand: jest.fn((input) => ({ kind: 'get', input })),
   DeleteObjectCommand: jest.fn((input) => ({ kind: 'delete', input })),
+  HeadBucketCommand: jest.fn((input) => ({ kind: 'head-bucket', input })),
 }));
 
 // Must be set before requiring the driver — it captures S3_BUCKET and builds the
@@ -54,4 +55,15 @@ test('remove DELETEs the object', async () => {
   mockSend.mockResolvedValue({});
   await s3.remove('user-1/a.pdf');
   expect(mockSend.mock.calls[0][0]).toMatchObject({ kind: 'delete', input: { Bucket: 'docs', Key: 'user-1/a.pdf' } });
+});
+
+test('ping issues HeadBucket on the configured bucket and resolves true', async () => {
+  mockSend.mockResolvedValue({});
+  await expect(s3.ping()).resolves.toBe(true);
+  expect(mockSend.mock.calls[0][0]).toMatchObject({ kind: 'head-bucket', input: { Bucket: 'docs' } });
+});
+
+test('ping rejects when the bucket is unreachable', async () => {
+  mockSend.mockRejectedValue(new Error('NotFound'));
+  await expect(s3.ping()).rejects.toThrow('NotFound');
 });

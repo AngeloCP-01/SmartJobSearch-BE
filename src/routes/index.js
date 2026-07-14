@@ -14,6 +14,7 @@ const postingsRoutes = require('../modules/postings/postings.routes');
 const authoredDocumentsRoutes = require('../modules/authored-documents/authored-documents.routes');
 const imagesRoutes = require('../modules/images/images.routes');
 const ragRoutes = require('../modules/rag/rag.routes');
+const healthRoutes = require('../modules/health/health.routes');
 
 const { version } = require('../../package.json');
 const commit = process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || 'dev';
@@ -22,6 +23,7 @@ const router = Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok', version }));
 router.get('/version', (req, res) => res.json({ version, commit, uptime: Math.round(process.uptime()) }));
+router.use('/', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/companies', companiesRoutes);
 router.use('/contacts', contactsRoutes);

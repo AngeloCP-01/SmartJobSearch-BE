@@ -26,7 +26,9 @@ const limiter = (opts) => (process.env.NODE_ENV === 'test'
 
 const apiLimiter = limiter({
   max: 600, // generous per-IP ceiling; health/version excluded (keep-alive + Render checks)
-  skip: (req) => req.originalUrl.endsWith('/health') || req.originalUrl.endsWith('/version'),
+  skip: (req) => req.originalUrl.endsWith('/health')
+    || req.originalUrl.endsWith('/health/deep')
+    || req.originalUrl.endsWith('/version'),
 });
 const authLimiter = limiter({
   max: 30, // tighter on auth to blunt brute-force/credential-stuffing

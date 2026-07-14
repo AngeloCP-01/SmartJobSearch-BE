@@ -20,4 +20,11 @@ async function remove(key) {
   await fs.promises.rm(full(key), { force: true });
 }
 
-module.exports = { save, createReadStream, remove };
+// Health probe: ensure the upload dir exists / is writable. Creating it is
+// idempotent and confirms the path is usable.
+async function ping() {
+  await fs.promises.mkdir(baseDir(), { recursive: true });
+  return true;
+}
+
+module.exports = { save, createReadStream, remove, ping };
