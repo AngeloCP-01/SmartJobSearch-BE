@@ -32,6 +32,12 @@ Master coordination: `../TASKS.md`
 
 > **Update (2026-07-09):** **V3-15 — RAG retrieval infrastructure** — **real backend work** (merged to local `main`). **PART 1 of 2.** A reusable, `userId`-scoped retrieval layer over uploaded documents: **pgvector** `DocumentChunk` (`public.vector(1024)` + HNSW cosine + FK cascade), a NVIDIA embedding client (`nv-embedqa-e5-v5`, asymmetric `input_type`, reuses the provider routing), pure chunking, `indexDocument`/`reindexAll` (extract→chunk→embed→replace in one tx, idempotent) + an index-on-upload hook (gated on `embeddingConfigured()`, fire-and-forget), `userId`-scoped cosine `retrieve()`, and `POST /api/rag/reindex` + `GET /api/rag/search`. Type/operator schema-qualified (`public.vector`, `OPERATOR(public.<=>)`) so they resolve under the per-worker test `search_path`; globalSetup pre-creates the extension. Built subagent-driven (6 TDD tasks; controller did the pgvector infra inline) + a final Opus review: Ready to merge (isolation + SQL safety verified). **Backend-only — no UI.** **BE 243 tests.** Deploy: enable pgvector on Neon, migrate, set `EMBEDDING_MODEL`, then `POST /api/rag/reindex` to backfill. Spec/plan: `docs/superpowers/…2026-07-08-rag-infrastructure…`. **Part 2 (AI résumé tailoring) not yet spec'd.**
 
+> **Update (2026-07-09):** **V3-16 — Tailor Résumé (RAG part 2 of 2)** — **real backend work** (merged `a6b99e3`). Consumes V3-15's `retrieve()`: `POST /api/analysis/tailor` → `generateTailoringSuggestions` retrieves the most JD-relevant chunks across the user's docs and returns `{kind:add|emphasize|rephrase|remove, text, why, groundedIn, severity}` suggestions. **Suggestions-only**, with a server-side **no-fabrication backstop** (an `add` is dropped unless `groundedIn` cites a real retrieved document; the display placeholder can't bypass it). Ephemeral. Friendly 503 when AI/retrieval is unavailable. Subagent-driven + final Opus review: Ready to merge. **BE tests green.** Deploy: `OPENROUTER_API_KEY` + `NVIDIA_OPENAI_KEY` + stabilized `OPENROUTER_MODEL`. Spec/plan: `docs/superpowers/…2026-07-09-tailor-resume-suggestions…`.
+
+> **Update (2026-07-13):** **V3-17 — Draft Tailored Résumé in Editor** — backend part (merged `80dacb9`, pushed). The existing `POST /api/analysis/tailor` now returns a verbatim **`anchor`** snippet per suggestion (`''` for `add`; schema null-tolerant) so the FE editor can locate it in the résumé. No new endpoint/AI call; no-fabrication backstop unchanged; `anchor` never humanized. Rest of the feature is frontend (opens résumé verbatim + click-to-locate panel, no AI rewrite). Subagent-driven (5 TDD tasks) + final Opus review + a browser e2e that caught/fixed a stale-match locate bug (FE). **BE 25 analysis tests.** Spec/plan: `docs/superpowers/…2026-07-09-tailored-resume-in-editor…`.
+
+> **Update (2026-07-13):** **Production deploy sync + graceful storage errors** — **real backend work** (pushed, live). Got prod current with V3-14→17. Live check found Tailor/Analysis 500'ing; root cause was the **free Supabase Storage project auto-pausing after ~7 days idle** (DB is on Neon, so app use never touches Supabase). Resuming fixed it; re-verified the whole AI/RAG/editor stack live. **Code (`a0a3c9e`):** shared `storage.readBuffer` → friendly **503 `STORAGE_UNAVAILABLE`** instead of a raw 500 across analysis/tailor/cover-letter/RAG/doc-open (replaced 3 duplicated copies) + storage tests. **Config/docs (`2001364`, `dd800f9`):** completed `render.yaml` env blueprint (`NVIDIA_OPENAI_KEY`/`EMBEDDING_MODEL`/`NVIDIA_BASE_URL`/`PUBLIC_API_URL` + stabilized `OPENROUTER_MODEL`), `.env.example`, and the Supabase-pause gotcha + R2 prevention in `DEPLOY.md`. Graceful 503 verified in prod. Follow-up (optional): move storage to Cloudflare R2 to avoid the pause.
+
 > Granular per-step tasks lived in the implementation plan above; this file is the milestone summary.
 
 ## BE-0 — Scaffold
@@ -63,6 +69,7 @@ Master coordination: `../TASKS.md`
 ## BE-5 — Dashboard
 - `GET /dashboard/summary`: total applications, count-by-status, upcoming interviews
 
-## BE-6 — Deploy
-- Railway/Render service + managed Postgres
-- Production env/secrets, CORS origin, run migrations
+## BE-6 — Deploy ☑ *(live since 2026-06-25)*
+- Render web service (free) + Neon Postgres + Supabase Storage (S3 driver); `render.yaml` blueprint. API: `https://smartjobsearch-api.onrender.com/api`.
+- Production env/secrets, CORS origin; migrations run automatically on deploy (`prisma migrate deploy` in the start command).
+- See `DEPLOY.md` for the full walkthrough + gotchas (CORS origin exactness, `NODE_ENV=production`, the Supabase Storage auto-pause).
