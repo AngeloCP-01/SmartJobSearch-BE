@@ -8,6 +8,7 @@
 // The chosen driver is required lazily so the AWS SDK is only loaded when s3 is
 // actually selected (keeps dev/test installs and startup light).
 const { AppError } = require('../utils/errors');
+const { logger } = require('../observability/logger');
 
 const driver = (process.env.STORAGE_DRIVER || 'local').toLowerCase() === 's3'
   ? require('./drivers/s3')
@@ -26,7 +27,7 @@ function readBuffer(key) {
       .on('data', (c) => chunks.push(c))
       .on('end', () => resolve(Buffer.concat(chunks)))
       .on('error', (err) => {
-        console.error(`[storage] read failed for ${key}: ${err.message}`);
+        logger.error({ err, key }, `[storage] read failed for ${key}`);
         reject(new AppError('The document store is temporarily unavailable. Please try again in a moment.', 503, 'STORAGE_UNAVAILABLE'));
       });
   });

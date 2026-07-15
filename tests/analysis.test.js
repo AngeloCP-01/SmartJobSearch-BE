@@ -11,6 +11,8 @@ const { aiMatch, generateTextWithFallback, generateJson } = require('../src/modu
 jest.mock('../src/modules/rag/rag.service');
 const { retrieve, indexDocument } = require('../src/modules/rag/rag.service');
 
+const { logger } = require('../src/shared/observability/logger');
+
 const { tailoringResultSchema } = require('../src/modules/analysis/analysis.schema');
 
 const { agent } = require('./helpers/testApp');
@@ -124,7 +126,7 @@ test('useAi + key + AI success → aiUsed true with AI match + ai suggestions', 
 test('useAi + key + AI throws → falls back to deterministic (never 500)', async () => {
   process.env.OPENROUTER_API_KEY = 'k';
   aiMatch.mockRejectedValue(new Error('rate limited'));
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
   try {
     const { token } = await registerAndLogin();
     const appId = await makeApp(token, 'Node.js and PostgreSQL.');
@@ -143,7 +145,7 @@ test('useAi + key + AI throws → logs a diagnostic warning before falling back'
   process.env.OPENROUTER_API_KEY = 'k';
   const aiErr = Object.assign(new Error('OpenRouter request failed: 429 — rate limit exceeded'), { kind: 'http', status: 429 });
   aiMatch.mockRejectedValue(aiErr);
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
   try {
     const { token } = await registerAndLogin();
     const appId = await makeApp(token, 'Node.js and PostgreSQL.');
@@ -151,9 +153,11 @@ test('useAi + key + AI throws → logs a diagnostic warning before falling back'
     const run = await agent().post('/api/analysis').set(auth(token)).send({ applicationId: appId, documentId: docId, useAi: true });
     expect(run.status).toBe(201);
     expect(warn).toHaveBeenCalled();
-    const logged = warn.mock.calls.flat().join(' ');
-    expect(logged).toContain('429');
-    expect(logged).toMatch(/AI|OpenRouter|fall/i);
+    const call = warn.mock.calls[0];
+    const context = call[0]; // { err, kind, model }
+    const message = call[1]; // the message string
+    expect(context.err.status).toBe(429);
+    expect(message).toMatch(/analysis|AI|fall/i);
   } finally {
     warn.mockRestore();
     delete process.env.OPENROUTER_API_KEY;

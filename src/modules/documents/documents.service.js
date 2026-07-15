@@ -6,6 +6,7 @@ const activity = require('../activity/activity.service');
 const { extractRich } = require('../analysis/engine/extract');
 const { indexDocument } = require('../rag/rag.service');
 const { embeddingConfigured } = require('../analysis/engine/embeddings');
+const { logger } = require('../../shared/observability/logger');
 
 const publicSelect = {
   id: true, name: true, type: true, notes: true,
@@ -28,7 +29,7 @@ async function create(userId, { name, type, notes }, file) {
       select: publicSelect,
     });
     if (embeddingConfigured()) {
-      indexDocument(userId, doc.id).catch((err) => console.warn(`[rag] index-on-upload failed for ${doc.id}: ${err.message}`));
+      indexDocument(userId, doc.id).catch((err) => logger.warn({ err, docId: doc.id }, '[rag] index-on-upload failed'));
     }
     return doc;
   } catch (e) {

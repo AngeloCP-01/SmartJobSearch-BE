@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { ValidationError, AppError } = require('../../shared/utils/errors');
 const { generateJson } = require('../analysis/engine/openrouter');
+const { logger } = require('../../shared/observability/logger');
 
 const isUrl = (s) => /^https?:\/\/\S+$/i.test(s.trim());
 
@@ -90,7 +91,7 @@ async function parsePosting(userId, { content }) {
       EXTRACT_SCHEMA,
     ));
   } catch (err) {
-    console.warn(`[postings] AI parse failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    logger.warn({ err, kind: err.kind || 'unknown' }, '[postings] AI parse failed');
     throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
   }
 

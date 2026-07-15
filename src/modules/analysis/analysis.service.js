@@ -9,6 +9,7 @@ const { buildSuggestions } = require('./engine/suggestions');
 const { tokenize } = require('./engine/text');
 const { aiMatch, generateTextWithFallback, generateJson } = require('./engine/openrouter');
 const { retrieve } = require('../rag/rag.service');
+const { logger } = require('../../shared/observability/logger');
 
 const rowSelect = { id: true, atsScore: true, matchScore: true, report: true, createdAt: true };
 
@@ -64,7 +65,7 @@ async function run(userId, { applicationId, documentId, useAi }) {
       } catch (err) {
         // Graceful fallback on any AI failure — but make the reason visible.
         const model = process.env.OPENROUTER_MODEL || 'default';
-        console.warn(`[analysis] AI analysis unavailable (kind=${err.kind || 'unknown'}, model=${model}); falling back to deterministic match: ${err.message}`);
+        logger.warn({ err, kind: err.kind || 'unknown', model }, '[analysis] AI analysis unavailable; falling back to deterministic match');
         match = matchJd(text, jd);
       }
     } else {
@@ -181,7 +182,7 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
       { role: 'user', content: user },
     ]);
   } catch (err) {
-    console.warn(`[cover-letter] AI generation failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    logger.warn({ err, kind: err.kind || 'unknown' }, '[cover-letter] AI generation failed');
     throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
   }
 
@@ -217,7 +218,7 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
   try {
     chunks = await retrieve(userId, jd, { topK: 8 });
   } catch (err) {
-    console.warn(`[tailor] retrieval failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    logger.warn({ err, kind: err.kind || 'unknown' }, '[tailor] retrieval failed');
     throw new AppError('Could not build tailoring suggestions right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
   }
   const docs = await prisma.document.findMany({ where: { userId }, select: { id: true, name: true } });
@@ -258,7 +259,7 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
       { role: 'user', content: user },
     ], tailoringResultSchema);
   } catch (err) {
-    console.warn(`[tailor] AI generation failed (kind=${err.kind || 'unknown'}): ${err.message}`);
+    logger.warn({ err, kind: err.kind || 'unknown' }, '[tailor] AI generation failed');
     throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
   }
 
