@@ -13,6 +13,18 @@ test('logger level is silent under NODE_ENV=test', () => {
   expect(logger.level).toBe('silent');
 });
 
+test('HTTP_SERIALIZERS.req logs only id/method/url — no header dump', () => {
+  const { HTTP_SERIALIZERS } = loadFresh();
+  const out = HTTP_SERIALIZERS.req({ id: 'abc', method: 'GET', url: '/api/analytics', headers: { authorization: 'Bearer x' }, remoteAddress: '::1' });
+  expect(out).toEqual({ id: 'abc', method: 'GET', url: '/api/analytics' });
+});
+
+test('HTTP_SERIALIZERS.res logs only statusCode — no header dump', () => {
+  const { HTTP_SERIALIZERS } = loadFresh();
+  const out = HTTP_SERIALIZERS.res({ statusCode: 200, headers: { 'set-cookie': 'refreshToken=x' } });
+  expect(out).toEqual({ statusCode: 200 });
+});
+
 test('genReqId generates a uuid and sets the X-Request-Id response header', () => {
   const { genReqId } = loadFresh();
   const setHeader = jest.fn();

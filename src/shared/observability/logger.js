@@ -38,6 +38,14 @@ function ignore(req) {
   return path.endsWith('/health') || path.endsWith('/health/deep') || path.endsWith('/version');
 }
 
-const httpLogger = pinoHttp({ logger, genReqId, autoLogging: { ignore } });
+// Compact per-request serializers — pino-http's defaults dump every request and
+// response header (huge, noisy, and a redaction surface). We only want the
+// signal: id, method, url, and status. responseTime is added by pino-http.
+const HTTP_SERIALIZERS = {
+  req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+  res: (res) => ({ statusCode: res.statusCode }),
+};
 
-module.exports = { logger, httpLogger, genReqId, REDACT };
+const httpLogger = pinoHttp({ logger, genReqId, autoLogging: { ignore }, serializers: HTTP_SERIALIZERS });
+
+module.exports = { logger, httpLogger, genReqId, REDACT, HTTP_SERIALIZERS };
