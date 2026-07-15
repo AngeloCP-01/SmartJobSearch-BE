@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { weightOf } = require('./match');
+const { logger } = require('../../../shared/observability/logger');
 
 const RESULT_SCHEMA = z.object({
   skills: z.array(z.object({ term: z.string(), type: z.enum(['hard', 'soft']), present: z.boolean() })),
@@ -239,7 +240,7 @@ async function withModelFallback(attempt) {
           // Log EACH abandoned model, not just the last — otherwise a chain that
           // silently falls through its primary (e.g. NVIDIA) to a flaky free model
           // is indistinguishable from the free model simply being slow.
-          console.warn(`[ai] model ${model} failed (kind=${err.kind}${err.status ? ` status=${err.status}` : ''}): ${err.message}`);
+          logger.warn({ err, kind: err.kind, model }, '[ai] model failed');
           break; // rate-limited (429), non-transient (parse), or out of retries → next model
         }
       }
