@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const routes = require('./routes');
 const { errorHandler } = require('./shared/middleware/error');
+const { httpLogger } = require('./shared/observability/logger');
 
 const app = express();
 
@@ -12,6 +13,10 @@ const app = express();
 // req.protocol/req.secure are correct, Secure cookies behave, and the rate
 // limiter keys on the real client IP (X-Forwarded-For) rather than the proxy.
 if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
+// Structured request logging + per-request correlation id (must run first so it
+// times the full request and every response carries X-Request-Id).
+app.use(httpLogger);
 
 // Security headers. cross-origin RP so the SPA on another origin can read responses.
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
