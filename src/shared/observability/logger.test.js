@@ -43,3 +43,17 @@ test('REDACT removes authorization and cookie from logged requests', (done) => {
     done();
   });
 });
+
+test('REDACT removes the Set-Cookie response header (refresh token) from logs', (done) => {
+  const { REDACT } = loadFresh();
+  const sink = new PassThrough();
+  let out = '';
+  sink.on('data', (c) => { out += c.toString(); });
+  const testLogger = pino({ level: 'info', redact: REDACT }, sink);
+  testLogger.info({ res: { headers: { 'set-cookie': 'refreshToken=SECRET_JWT; HttpOnly', 'content-type': 'application/json' } } }, 'res');
+  setImmediate(() => {
+    expect(out).not.toContain('SECRET_JWT');
+    expect(out).toContain('content-type');
+    done();
+  });
+});

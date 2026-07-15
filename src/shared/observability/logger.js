@@ -8,8 +8,9 @@ const pinoHttp = require('pino-http');
 const isTest = process.env.NODE_ENV === 'test';
 const isDev = process.env.NODE_ENV !== 'production' && !isTest;
 
-// Never let the access token or session cookie reach the logs.
-const REDACT = { paths: ['req.headers.authorization', 'req.headers.cookie'], remove: true };
+// Never let the access token, session cookie, or (via pino-http's logged
+// response headers) the Set-Cookie refresh-token reach the logs.
+const REDACT = { paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'], remove: true };
 
 const logger = pino({
   level: isTest ? 'silent' : (process.env.LOG_LEVEL || 'info'),
