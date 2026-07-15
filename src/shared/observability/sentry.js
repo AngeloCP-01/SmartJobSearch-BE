@@ -31,9 +31,13 @@ function initSentry() {
   enabled = true;
 }
 
-function captureError(err) {
+function captureError(err, context) {
   if (!enabled) return;
-  Sentry.captureException(err);
+  if (context && context.requestId) {
+    Sentry.captureException(err, { tags: { request_id: context.requestId } });
+  } else {
+    Sentry.captureException(err);
+  }
 }
 
 module.exports = { initSentry, captureError, scrub };
