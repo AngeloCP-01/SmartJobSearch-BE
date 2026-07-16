@@ -1,6 +1,11 @@
 const mockInit = jest.fn();
 const mockCapture = jest.fn();
-jest.mock('@sentry/node', () => ({ init: mockInit, captureException: mockCapture }));
+const mockPinoIntegration = jest.fn(() => ({ name: 'Pino' }));
+jest.mock('@sentry/node', () => ({
+  init: mockInit,
+  captureException: mockCapture,
+  pinoIntegration: mockPinoIntegration,
+}));
 
 const loadFresh = () => {
   let mod;
@@ -19,6 +24,7 @@ beforeEach(() => {
 afterEach(() => {
   mockInit.mockReset();
   mockCapture.mockReset();
+  mockPinoIntegration.mockClear();
   for (const k of ENV_KEYS) {
     if (savedEnv[k] === undefined) delete process.env[k];
     else process.env[k] = savedEnv[k];
@@ -90,4 +96,18 @@ test('scrubLog tolerates a log with no attributes', () => {
   const { scrubLog } = loadFresh();
   const log = { level: 'info', message: 'no attrs' };
   expect(scrubLog(log)).toBe(log);
+});
+
+test('initSentry enables logs with the pino integration and scrubLog hook', () => {
+  process.env.SENTRY_DSN = 'https://k@o.ingest.sentry.io/1';
+  process.env.NODE_ENV = 'production';
+  const { initSentry, scrubLog } = loadFresh();
+  initSentry();
+  const opts = mockInit.mock.calls[0][0];
+  expect(opts.enableLogs).toBe(true);
+  expect(opts.beforeSendLog).toBe(scrubLog);
+  expect(mockPinoIntegration).toHaveBeenCalledWith({
+    log: { levels: ['info', 'warn', 'error', 'fatal'] },
+  });
+  expect(opts.integrations).toContainEqual({ name: 'Pino' });
 });

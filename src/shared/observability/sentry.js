@@ -43,6 +43,14 @@ function initSentry() {
     release: process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || undefined,
     tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0),
     beforeSend: scrub,
+    // Sentry Logs: forward the pino stream into this project so logs correlate
+    // with the request_id-tagged errors captured in error.js. info+ only, to
+    // stay within the free-tier logs quota (dial to warn+ if volume climbs).
+    enableLogs: true,
+    integrations: [
+      Sentry.pinoIntegration({ log: { levels: ['info', 'warn', 'error', 'fatal'] } }),
+    ],
+    beforeSendLog: scrubLog,
   });
   enabled = true;
 }
