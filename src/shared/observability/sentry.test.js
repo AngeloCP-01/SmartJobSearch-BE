@@ -65,3 +65,29 @@ test('scrub removes the auth cookie and authorization header', () => {
   expect(event.request.headers.Cookie).toBeUndefined();
   expect(event.request.headers['user-agent']).toBe('ua');
 });
+
+test('scrubLog removes sensitive attribute keys case-insensitively', () => {
+  const { scrubLog } = loadFresh();
+  const out = scrubLog({
+    level: 'info',
+    message: 'req done',
+    attributes: {
+      Authorization: 'Bearer x',
+      cookie: 'session=1',
+      'Set-Cookie': 'refresh=2',
+      request_id: 'abc-123',
+      url: '/api/foo',
+    },
+  });
+  expect(out.attributes.Authorization).toBeUndefined();
+  expect(out.attributes.cookie).toBeUndefined();
+  expect(out.attributes['Set-Cookie']).toBeUndefined();
+  expect(out.attributes.request_id).toBe('abc-123');
+  expect(out.attributes.url).toBe('/api/foo');
+});
+
+test('scrubLog tolerates a log with no attributes', () => {
+  const { scrubLog } = loadFresh();
+  const log = { level: 'info', message: 'no attrs' };
+  expect(scrubLog(log)).toBe(log);
+});
