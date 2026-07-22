@@ -11,7 +11,10 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # pgvector-enabled image (drop-in for postgres:16, same env/port) — the
+        # test globalSetup runs `CREATE EXTENSION vector` for the RAG store, which
+        # the stock postgres image lacks. Mirrors docker-compose.yml.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: crm
           POSTGRES_PASSWORD: crm
