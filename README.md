@@ -9,6 +9,21 @@ Modular-monolith REST API for JobTrail, a multi-user job-search CRM: auth, compa
 
 Node.js · Express · PostgreSQL (Prisma) · JWT (access + httpOnly refresh cookie) · Zod · multi-provider LLM routing (NVIDIA NIM + OpenRouter) · pgvector (RAG) · Jest + Supertest. Deployed on Render + Neon + Supabase Storage.
 
+**Deployment & infrastructure** (all free-tier):
+
+| Concern | Service |
+|---|---|
+| **API host** | Render (Express) — `/api/health` kept warm by a GitHub Actions keep-alive ping |
+| **Database** | Neon (serverless Postgres + `pgvector`), via Prisma |
+| **File storage** | Supabase Storage (S3-compatible, via `@aws-sdk/client-s3`) |
+| **AI (LLM + embeddings)** | NVIDIA NIM primary (`integrate.api.nvidia.com`), OpenRouter fallback — one `<provider>:`-prefixed model chain |
+| **Error tracking** | Sentry (`@sentry/node`; auth headers scrubbed before send) |
+| **Logging** | pino / pino-http structured logs, drained to **Sentry Logs** |
+| **Uptime monitoring** | UptimeRobot — HTTP(s) monitor on the health endpoint |
+| **CI** | GitHub Actions — Jest + Supertest against a Postgres service container |
+
+The companion frontend (Vercel) adds **Vercel Web Analytics + Speed Insights** for traffic and Core Web Vitals; see the [frontend repo](https://github.com/AngeloCP-01/SmartJobSearch-FE).
+
 ## Architecture
 
 A **modular monolith** — one module per domain, each with its own `routes → controller → service → schema` and integration tests, sharing a thin infra layer.
@@ -35,6 +50,7 @@ tests/
 - **RAG-grounded tailoring** — résumé-tailoring suggestions are retrieved from the user's own documents via **pgvector** (NVIDIA embeddings, HNSW cosine, `userId`-scoped) with a **no-fabrication backstop** so the model can't invent experience.
 - **Swappable storage** — a `save/createReadStream/remove/readBuffer` interface backs both local disk (dev) and S3-compatible object storage (prod, e.g. Supabase/R2) so uploads survive an ephemeral-disk host. Chosen by one env var; no caller changes. A read failure surfaces as a friendly **503**, not a raw 500.
 - **Per-user isolation** — every query is scoped to the authenticated user; tests assert one user can’t read/modify another’s data.
+- **Production observability** — errors go to Sentry (auth headers scrubbed, `sendDefaultPii: false`), requests/events are logged as structured pino JSON and drained to Sentry Logs, and UptimeRobot polls the health endpoint. Both Sentry and the AI layer are inert without their env vars, so local dev and CI make no external calls.
 
 ## Data model
 
