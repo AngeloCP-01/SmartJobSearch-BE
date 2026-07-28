@@ -107,18 +107,34 @@ function resolveProvider(spec) {
   return { provider, model, baseUrl, key: process.env[cfg.keyEnv] };
 }
 
+// Normalize the provider's OpenAI-style `usage` block into camelCase, filling
+// nulls when it's absent — several free endpoints omit it entirely, and a null
+// ("we don't know") must stay distinguishable from a zero ("it cost nothing").
+// total_tokens is likewise optional, so derive it when both halves are present.
+function normalizeUsage(usage) {
+  const promptTokens = Number.isFinite(usage?.prompt_tokens) ? usage.prompt_tokens : null;
+  const completionTokens = Number.isFinite(usage?.completion_tokens) ? usage.completion_tokens : null;
+  let totalTokens = Number.isFinite(usage?.total_tokens) ? usage.total_tokens : null;
+  if (totalTokens === null && promptTokens !== null && completionTokens !== null) {
+    totalTokens = promptTokens + completionTokens;
+  }
+  return { promptTokens, completionTokens, totalTokens };
+}
+
 // One model, one attempt: the shared network exchange with the resolved provider.
-// Returns the assistant message content (a string); throws a tagged
-// OpenRouterError. Reused by the JSON analysis (`complete`) and freeform text
-// (`generateText`). An empty content (e.g. a reasoning model that spent its whole
-// token budget "thinking") throws 'parse', so the caller falls through to the
-// next model rather than returning a blank result.
+// Returns the assistant message content plus per-call telemetry (token usage,
+// wall-clock latency, resolved provider); throws a tagged OpenRouterError.
+// Reused by the JSON analysis (`complete`) and freeform text (`generateText`).
+// An empty content (e.g. a reasoning model that spent its whole token budget
+// "thinking") throws 'parse', so the caller falls through to the next model
+// rather than returning a blank result.
 async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxTokens = 1500 }) {
-  const { model, baseUrl: base, key } = resolveProvider(modelSpec);
+  const { provider, model, baseUrl: base, key } = resolveProvider(modelSpec);
   if (!key) throw new OpenRouterError(`API key not configured for the selected provider (${modelSpec})`, 'config');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const startedAt = Date.now();
   try {
     // One try around the whole network exchange (request + body read) so a
     // timeout/abort is tagged the same way whether it fires during the request
@@ -154,7 +170,7 @@ async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxT
 
     const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     if (!content) throw new OpenRouterError(`OpenRouter returned no content (model ${model})`, 'parse', { model });
-    return content;
+    return { content, provider, usage: normalizeUsage(data.usage), latencyMs: Date.now() - startedAt };
   } finally {
     clearTimeout(timer);
   }
@@ -162,7 +178,7 @@ async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxT
 
 async function complete(resumeText, jobDescription, modelArg) {
   const model = modelArg || parseModels()[0];
-  const content = await chat(model, {
+  const { content, ...telemetry } = await chat(model, {
     messages: [
       { role: 'system', content: SYSTEM },
       { role: 'user', content: `JOB DESCRIPTION:\n${jobDescription}\n\nRÉSUMÉ:\n${resumeText}` },
@@ -173,7 +189,7 @@ async function complete(resumeText, jobDescription, modelArg) {
   });
   try {
     const result = RESULT_SCHEMA.parse(JSON.parse(extractJson(content)));
-    return { result, model };
+    return { result, model, ...telemetry };
   } catch (e) {
     throw new OpenRouterError(`OpenRouter returned unusable output (model ${model}): ${e.message}`, 'parse', { model, cause: e });
   }
@@ -183,8 +199,8 @@ async function complete(resumeText, jobDescription, modelArg) {
 // parsing. A little warmth (temperature) since this is prose, not extraction.
 async function generateText(messages, modelArg) {
   const model = modelArg || parseModels()[0];
-  const content = await chat(model, { messages, temperature: 0.7, maxTokens: 1200 });
-  return { text: content.trim(), model };
+  const { content, ...telemetry } = await chat(model, { messages, temperature: 0.7, maxTokens: 1200 });
+  return { text: content.trim(), model, ...telemetry };
 }
 
 // Worth retrying the SAME model after a short backoff — a transient glitch that
@@ -218,15 +234,24 @@ async function withModelFallback(attempt) {
   const baseMs = Number(process.env.OPENROUTER_RETRY_BASE_MS ?? 400);
   const retryAfterCapMs = Number(process.env.OPENROUTER_RETRY_AFTER_MAX_MS ?? 10000);
 
-  const state = { lastErr: undefined, minRetryAfterMs: Infinity };
+  const state = { lastErr: undefined, minRetryAfterMs: Infinity, sweepN: 1 };
 
   // One pass over every model (with same-model retries for transient glitches).
   // Returns the result, or undefined if the whole chain failed without a fatal.
   async function sweep() {
-    for (const model of models) {
+    for (const [depth, model] of models.entries()) {
       for (let attemptN = 1; attemptN <= attempts; attemptN += 1) {
         try {
-          return await attempt(model); // eslint-disable-line no-await-in-loop
+          const res = await attempt(model); // eslint-disable-line no-await-in-loop
+          // The one durable record of what a request actually cost: which model
+          // served it, how far down the chain that was, and the tokens/latency
+          // the provider reported. Nothing else persists this — the request ends
+          // and the numbers are gone. `fallbackDepth > 0` is the signal that the
+          // primary is degrading before it fails outright.
+          logger.info({
+            model, provider: res.provider, fallbackDepth: depth, sweep: state.sweepN, latencyMs: res.latencyMs, ...res.usage,
+          }, '[ai] completion');
+          return { ...res, fallbackDepth: depth, sweep: state.sweepN };
         } catch (err) {
           state.lastErr = err;
           if (isFatal(err)) throw err;
@@ -255,6 +280,7 @@ async function withModelFallback(attempt) {
   // provider asked for (if reasonable) and re-sweep once before giving up.
   if (Number.isFinite(state.minRetryAfterMs) && state.minRetryAfterMs <= retryAfterCapMs) {
     await wait(state.minRetryAfterMs);
+    state.sweepN = 2;
     const second = await sweep();
     if (second) return second;
   }
@@ -281,9 +307,9 @@ function generateTextWithFallback(messages) {
 const JSON_MAX_TOKENS = Number(process.env.OPENROUTER_JSON_MAX_TOKENS || 4000);
 async function generateJsonOnce(messages, schema, modelArg) {
   const model = modelArg || parseModels()[0];
-  const content = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: JSON_MAX_TOKENS });
+  const { content, ...telemetry } = await chat(model, { messages, responseFormat: { type: 'json_object' }, temperature: 0, maxTokens: JSON_MAX_TOKENS });
   try {
-    return { data: schema.parse(JSON.parse(extractJson(content))), model };
+    return { data: schema.parse(JSON.parse(extractJson(content))), model, ...telemetry };
   } catch (e) {
     throw new OpenRouterError(`OpenRouter returned unusable output (model ${model}): ${e.message}`, 'parse', { model, cause: e });
   }

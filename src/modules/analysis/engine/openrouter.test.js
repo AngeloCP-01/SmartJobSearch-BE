@@ -1,4 +1,7 @@
-const { aiMatch, complete, completeWithFallback, resolveProvider } = require('./openrouter');
+const {
+  aiMatch, complete, completeWithFallback, generateTextWithFallback, resolveProvider,
+} = require('./openrouter');
+const { logger } = require('../../../shared/observability/logger');
 
 const okResponse = (payload) => ({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }] }) });
 const errResponse = (status, body = 'err') => ({ ok: false, status, text: async () => body });
@@ -207,6 +210,96 @@ test('throws the last error when every model is exhausted', async () => {
   global.fetch = jest.fn().mockResolvedValue(errResponse(503, 'down'));
   await expect(completeWithFallback('r', 'j')).rejects.toMatchObject({ kind: 'http', status: 503 });
   expect(global.fetch).toHaveBeenCalledTimes(4); // 2 models × 2 attempts
+});
+
+// ---- Call telemetry (tokens / latency / which model actually served it) ----
+//
+// Cost, latency and fallback depth are the questions you cannot answer after the
+// fact: the provider reports token usage on every response and we used to throw
+// it away. These assert the numbers survive to the caller AND reach the logs,
+// since the log line is the only durable record once the request is over.
+
+const usageOk = (payload, usage) => ({
+  ok: true,
+  json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }], usage }),
+});
+const EMPTY_USAGE_OK = (usage) => usageOk({ skills: [], suggestions: [] }, usage);
+
+test('completion reports the token usage the provider returned', async () => {
+  global.fetch = jest.fn().mockResolvedValue(EMPTY_USAGE_OK({ prompt_tokens: 120, completion_tokens: 45, total_tokens: 165 }));
+  const r = await complete('r', 'j');
+  expect(r.usage).toEqual({ promptTokens: 120, completionTokens: 45, totalTokens: 165 });
+});
+
+test('totalTokens falls back to prompt+completion when the provider omits it', async () => {
+  global.fetch = jest.fn().mockResolvedValue(EMPTY_USAGE_OK({ prompt_tokens: 100, completion_tokens: 20 }));
+  const r = await complete('r', 'j');
+  expect(r.usage.totalTokens).toBe(120);
+});
+
+test('usage is null-filled when the provider omits it entirely', async () => {
+  global.fetch = jest.fn().mockResolvedValue(EMPTY_OK);
+  const r = await complete('r', 'j');
+  expect(r.usage).toEqual({ promptTokens: null, completionTokens: null, totalTokens: null });
+});
+
+test('completion reports how long the provider call took', async () => {
+  global.fetch = jest.fn().mockResolvedValue(EMPTY_OK);
+  const r = await complete('r', 'j');
+  expect(typeof r.latencyMs).toBe('number');
+  expect(r.latencyMs).toBeGreaterThanOrEqual(0);
+});
+
+test('a successful completion logs tokens, latency and the winning model', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free';
+  const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+  global.fetch = jest.fn().mockResolvedValue(EMPTY_USAGE_OK({ prompt_tokens: 120, completion_tokens: 45, total_tokens: 165 }));
+  await completeWithFallback('r', 'j');
+  expect(info).toHaveBeenCalledWith(
+    expect.objectContaining({
+      model: 'a/model:free', provider: 'openrouter', fallbackDepth: 0, sweep: 1, totalTokens: 165, promptTokens: 120, completionTokens: 45,
+    }),
+    '[ai] completion',
+  );
+});
+
+test('fallbackDepth records how far down the chain the winning model was', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free, b/model:free';
+  const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+  jest.spyOn(logger, 'warn').mockImplementation(() => {});
+  global.fetch = jest.fn().mockImplementation((url, opts) => Promise.resolve(
+    modelOf(opts) === 'a/model:free' ? errResponse(429) : EMPTY_OK,
+  ));
+  await completeWithFallback('r', 'j');
+  expect(info).toHaveBeenCalledWith(
+    expect.objectContaining({ model: 'b/model:free', fallbackDepth: 1 }),
+    '[ai] completion',
+  );
+});
+
+test('a completion served by the post-Retry-After re-sweep is logged as sweep 2', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free, b/model:free';
+  process.env.OPENROUTER_RETRY_AFTER_MAX_MS = '10000';
+  const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+  jest.spyOn(logger, 'warn').mockImplementation(() => {});
+  global.fetch = jest.fn().mockImplementation(() => {
+    const firstSweep = global.fetch.mock.calls.length <= 2;
+    return Promise.resolve(firstSweep ? rateLimited(0) : EMPTY_OK);
+  });
+  await completeWithFallback('r', 'j');
+  expect(info).toHaveBeenCalledWith(expect.objectContaining({ sweep: 2 }), '[ai] completion');
+});
+
+test('freeform text generation carries the same telemetry as JSON completion', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free';
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: 'Dear hiring manager,' } }], usage: { prompt_tokens: 300, completion_tokens: 210 } }),
+  });
+  const r = await generateTextWithFallback([{ role: 'user', content: 'write' }]);
+  expect(r.text).toBe('Dear hiring manager,');
+  expect(r.usage).toEqual({ promptTokens: 300, completionTokens: 210, totalTokens: 510 });
+  expect(r.fallbackDepth).toBe(0);
 });
 
 // ---- Multi-provider routing (Qwen-on-NVIDIA primary, OpenRouter fallback) ----

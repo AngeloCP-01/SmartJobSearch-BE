@@ -1,4 +1,5 @@
 const { embed, embeddingConfigured } = require('./embeddings');
+const { logger } = require('../../../shared/observability/logger');
 
 beforeEach(() => {
   process.env.EMBEDDING_MODEL = 'nvidia:nvidia/nv-embedqa-e5-v5';
@@ -46,6 +47,25 @@ test('missing provider key → config error', async () => {
 test('non-2xx → http error tagged with status', async () => {
   global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503, text: async () => 'busy' });
   await expect(embed(['x'], 'query')).rejects.toMatchObject({ kind: 'http', status: 503 });
+});
+
+// Embedding is the other AI call on the hot path (indexing + every RAG query),
+// so it needs the same cost/latency record as a completion. The vectors are the
+// return value, so telemetry can only surface through the log.
+test('a successful embedding logs batch size, latency and token usage', async () => {
+  const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: [{ embedding: [1] }, { embedding: [2] }], usage: { prompt_tokens: 88, total_tokens: 88 } }),
+  });
+  await embed(['alpha', 'beta'], 'query');
+  expect(info).toHaveBeenCalledWith(
+    expect.objectContaining({
+      model: 'nvidia/nv-embedqa-e5-v5', provider: 'nvidia', inputType: 'query', batchSize: 2, promptTokens: 88, totalTokens: 88,
+    }),
+    '[ai] embedding',
+  );
+  expect(typeof info.mock.calls[0][0].latencyMs).toBe('number');
 });
 
 test('embeddingConfigured reflects whether the provider key is set', () => {
