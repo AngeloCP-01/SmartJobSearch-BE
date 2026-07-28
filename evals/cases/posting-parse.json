@@ -2,13 +2,16 @@
   {
     "id": "posting-parse-clean",
     "feature": "posting-parse",
-    "rationale": "The happy path. A well-structured JobStreet-style posting with every field stated explicitly — title, company, location and salary should all come back exactly as written.",
+    "rationale": "The happy path. A well-structured JobStreet-style posting with every field stated explicitly. Also checks the monthly-to-annual conversion the prompt mandates: Php 140,000/month must come back as 1,680,000, not 140,000.",
     "adversarial": false,
     "input": { "posting": "fixture:postings/clean-jobstreet.txt" },
     "expect": {
       "fields": {
-        "company": "Kaya Financial Inc.",
-        "location": "Bonifacio Global City, Taguig City, Metro Manila"
+        "position": "Senior Software Engineer",
+        "companyName": "Kaya Financial",
+        "workMode": "Hybrid",
+        "salaryMin": "1680000",
+        "salaryMax": "2280000"
       },
       "nullFields": []
     }
@@ -16,24 +19,27 @@
   {
     "id": "posting-parse-missing-fields-stay-null",
     "feature": "posting-parse",
-    "rationale": "Adversarial and the most important parse case: a posting that never states a location or a salary. Every field in EXTRACT_SCHEMA is nullable precisely so the model can decline. Inventing a plausible Metro Manila salary here would be a silent data-corruption bug, not a formatting slip.",
+    "rationale": "Adversarial and the most important parse case: a posting that never states a salary or a work mode. Every field in EXTRACT_SCHEMA is nullable precisely so the model can decline. Inventing a plausible Metro Manila salary here would be a silent data-corruption bug, not a formatting slip.",
     "adversarial": true,
     "input": { "posting": "fixture:postings/no-salary-no-location.txt" },
     "expect": {
-      "fields": { "company": "Sablay Digital" },
-      "nullFields": ["salary", "location"]
+      "fields": { "position": "Full Stack Developer", "companyName": "Sablay Digital" },
+      "nullFields": ["salaryMin", "salaryMax", "workMode"]
     }
   },
   {
     "id": "posting-parse-taglish-noisy",
     "feature": "posting-parse",
-    "rationale": "Adversarial: a real-shaped Philippine social-media posting — Taglish, emoji, ALL CAPS, asterisk bullets, salary written as '35k-45k'. Extraction must survive the noise, since this is what users actually paste in.",
+    "rationale": "Adversarial: a real-shaped Philippine social-media posting — Taglish, emoji, ALL CAPS, asterisk bullets, and salary written as the shorthand '35k-45k' per month. Extraction must survive the noise and still annualise, since this is what users actually paste.",
     "adversarial": true,
     "input": { "posting": "fixture:postings/taglish-messy.txt" },
     "expect": {
       "fields": {
-        "company": "Bagong Sigla Tech Solutions Inc.",
-        "location": "Cebu Business Park, Cebu City"
+        "position": "Web Developer",
+        "companyName": "Bagong Sigla Tech Solutions",
+        "workMode": "OnSite",
+        "salaryMin": "420000",
+        "salaryMax": "540000"
       },
       "nullFields": []
     }
@@ -48,7 +54,7 @@
     },
     "expect": {
       "fields": {},
-      "nullFields": ["title", "company", "location", "salary"]
+      "nullFields": ["position", "companyName", "salaryMin", "salaryMax", "workMode"]
     }
   }
 ]
