@@ -15,3 +15,7 @@ docs/*.pdf
 
 # SDD scratch (briefs/reports/review packages/progress ledger)
 .superpowers/
+
+# Eval run output. Recordings ARE committed (they make --replay reproducible
+# for anyone), but a scored run is a point-in-time measurement, not source.
+evals/results/

@@ -108,4 +108,7 @@ async function parsePosting(userId, { content }) {
   };
 }
 
-module.exports = { parsePosting };
+// SYSTEM + EXTRACT_SCHEMA are exported for the eval harness (evals/), which must
+// exercise the real production prompt and schema — an eval running against a
+// copy measures the copy, not what ships.
+module.exports = { parsePosting, SYSTEM, EXTRACT_SCHEMA };

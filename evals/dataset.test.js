@@ -41,6 +41,23 @@ describe('golden dataset', () => {
     for (const c of cases) expect(c.rationale.length).toBeGreaterThan(20);
   });
 
+  // Regression guard. The first draft of these cases asserted `company`,
+  // `location`, `salary` and `title` — none of which exist in EXTRACT_SCHEMA
+  // (the real fields are position, companyName, salaryMin, salaryMax,
+  // workMode, jobDescription). Those cases would have run happily and measured
+  // nothing. A case that names a field the schema does not have is a silent
+  // no-op that reads as a pass, so it fails the build instead.
+  test('posting-parse cases only reference fields that exist in EXTRACT_SCHEMA', () => {
+    const { EXTRACT_SCHEMA } = require('../src/modules/postings/postings.service');
+    const known = Object.keys(EXTRACT_SCHEMA.shape);
+    for (const c of cases.filter((x) => x.feature === 'posting-parse')) {
+      const referenced = [...Object.keys(c.expect.fields || {}), ...(c.expect.nullFields || [])];
+      for (const field of referenced) {
+        expect({ case: c.id, field, known }).toMatchObject({ field: expect.stringMatching(new RegExp(`^(${known.join('|')})$`)) });
+      }
+    }
+  });
+
   test('every fixture reference resolves to non-empty text', () => {
     for (const c of cases) {
       for (const value of Object.values(c.input)) {

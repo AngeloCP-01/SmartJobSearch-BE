@@ -14,10 +14,34 @@ changes measurable.
 | Phase | What | State |
 |---|---|---|
 | 0 | Token / latency / fallback-depth instrumentation | ✅ shipped (V3-23) |
-| **1** | **Golden dataset + loader** | ✅ **this directory** |
-| 2 | Deterministic scorers + `npm run eval` | ☐ next |
-| 3 | LLM-as-judge for subjective quality | ☐ |
+| 1 | Golden dataset + loader | ✅ shipped (V3-24) |
+| **2** | **Deterministic scorers + `npm run eval`** | ✅ **shipped (V3-25)** |
+| 3 | LLM-as-judge for subjective quality | ☐ next |
 | 4 | Regression gating (nightly, never per-PR) | ☐ |
+
+## Running it
+
+```bash
+npm run eval                       # every case, live model calls
+npm run eval -- --feature=match    # one feature
+npm run eval -- --case=<id>        # one case
+npm run eval -- --record           # save each case's output to recordings/
+npm run eval -- --replay           # score saved outputs, no model calls
+npm run eval -- --out=path.json    # where to write the artifact
+```
+
+`--replay` is the loop you want while iterating on scorers: **record once, then
+re-score instantly and for free** until the checks are right.
+
+Exits `1` on a quality failure and `0` otherwise — but **never** non-zero purely
+because the provider errored, so this can be wired to a nightly job later
+without paging on a 429. Cases run sequentially on purpose: the provider chain
+is free-tier and rate-limited, and firing them concurrently is the fastest way
+to turn a quality run into a 429 run that measures nothing.
+
+`recordings/` is committed (it makes `--replay` reproducible for anyone);
+`results/` is gitignored, because a scored run is a point-in-time measurement,
+not source.
 
 ## Layout
 
@@ -28,10 +52,39 @@ evals/
     resumes/          reusable résumé text
     jds/              reusable job-description text
     postings/         raw pasted job postings (parse feature)
+  recordings/         saved model outputs for --replay (committed)
+  results/            scored run artifacts (gitignored)
   case.schema.js      Zod schema for a case + per-feature expectations
   load.js             loads, validates, and hydrates cases
+  scorers.js          deterministic pass/fail checks per feature
+  report.js           aggregation + text rendering
+  run.js              the `npm run eval` entry point
   dataset.test.js     guards the dataset — runs in `npm test`, makes no API calls
+  scorers.test.js     unit tests for the scorers
+  report.test.js      unit tests for aggregation
+  run.test.js         unit tests for the runner's CLI logic
 ```
+
+## What gets measured
+
+| Metric | Why it's here |
+|---|---|
+| **Pass rate** | Headline, but the least interesting number on its own |
+| **Adversarial pass rate** | Reported separately — a run can look healthy overall while every honesty case is red |
+| **Fabrications** | The headline honesty number. Any value above zero is worth a look regardless of pass rate |
+| Per-check failures | Named and listed. "Pass rate fell to 60%" isn't actionable; `present-not-fabricated:terraform failed on match-stretch-senior` is |
+| Ungrounded adds | How often the model *tried* to fabricate, counted before the engine's `groundedIn` filter drops it — the filter protects the user, this measures the prompt |
+| Humanizer violations | Counted on the **raw** text, before `humanize()` cleans it — the interesting number is how much correcting the model needed |
+| Tokens / latency / fallback depth | From the Phase 0 instrumentation, carried through per case |
+
+**Errored cases are counted separately from failing ones.** The model never
+answered, so the quality question is unanswered — folding the two together is
+how a provider outage gets misread as the prompt getting worse.
+
+The scorers deliberately check only what a machine can check without another
+model's opinion: did the term appear, was the field null, was this claim
+fabricated. Subjective quality is Phase 3. A deterministic scorer pretending to
+judge tone would be exactly the vibes-based measurement this replaces.
 
 `dataset.test.js` deliberately runs in the normal suite: it is fast, offline and
 deterministic, and it stops a malformed or unexplained case from being committed.
