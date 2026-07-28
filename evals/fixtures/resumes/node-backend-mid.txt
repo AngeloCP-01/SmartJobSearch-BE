@@ -1,0 +1,34 @@
+MARIA SANTOS
+Backend Engineer — Makati City, Philippines
+maria.santos@example.com
+
+SUMMARY
+Backend engineer with 4 years building REST APIs and background workers for
+logistics and fintech products. Comfortable owning a service end to end, from
+schema design through deploy and on-call.
+
+EXPERIENCE
+
+Backend Engineer, Fleetline Logistics (2023 - present)
+- Built and maintained a shipment-tracking API in Node.js and Express serving
+  around 400 requests per second at peak.
+- Designed the PostgreSQL schema for the shipment and route tables; introduced
+  cursor-based pagination after offset pagination began timing out past page 400.
+- Moved nightly report generation into a Redis-backed BullMQ queue, cutting the
+  p99 of the reports endpoint from 8s to 240ms.
+- Containerised the service with Docker and set up the GitHub Actions pipeline
+  that runs the test suite against a throwaway Postgres instance.
+- Carried the on-call pager on a two-week rotation.
+
+Software Engineer, Ridgeway Solutions (2021 - 2023)
+- Maintained a monolithic Express application and its MySQL database.
+- Wrote the integration test suite (Jest + Supertest) from zero to 180 tests.
+- Migrated the authentication flow from session cookies to JWT access tokens
+  with refresh-token rotation.
+
+SKILLS
+JavaScript, TypeScript, Node.js, Express, PostgreSQL, MySQL, Redis, Docker,
+Git, GitHub Actions, Jest, Supertest, REST API design, SQL query tuning
+
+EDUCATION
+BS Computer Science, University of the Philippines Diliman, 2021

@@ -1,0 +1,19 @@
+Backend Engineer (Node.js)
+Tambayan Commerce — Ortigas Center, Pasig (Remote-first)
+
+We run the order and fulfilment services behind a mid-size marketplace and are
+hiring a backend engineer to help us keep them fast and boring.
+
+Responsibilities
+- Build and maintain REST APIs in Node.js and Express.
+- Design and tune PostgreSQL schemas and queries.
+- Move slow synchronous work into Redis-backed background jobs.
+- Keep the Docker images and GitHub Actions pipeline healthy.
+- Write tests. We use Jest and Supertest and we mean it.
+
+Requirements
+- 3+ years of backend work in JavaScript or TypeScript.
+- Solid SQL. You should be able to read an EXPLAIN plan.
+- Practical experience with Redis and background job queues.
+- Comfortable with Docker and a CI pipeline.
+- Experience carrying a pager is a plus, not a requirement.

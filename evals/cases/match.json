@@ -1,0 +1,123 @@
+[
+  {
+    "id": "match-aligned-strong",
+    "feature": "match",
+    "rationale": "The happy path. A mid-level Node résumé against a well-aligned Node JD — the model should extract the JD's real stack and mark most of it present. If this case degrades, something broke badly.",
+    "adversarial": false,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "fixture:jds/node-backend-aligned.txt"
+    },
+    "expect": {
+      "jdSkills": {
+        "required": ["node.js", "postgresql", "redis", "docker"],
+        "forbidden": ["kubernetes", "terraform", "kafka"]
+      },
+      "present": {
+        "required": ["node.js", "postgresql", "redis", "docker"],
+        "forbidden": []
+      },
+      "matchScoreRange": [70, 100]
+    }
+  },
+  {
+    "id": "match-stretch-senior",
+    "feature": "match",
+    "rationale": "A realistic stretch application: the same mid-level résumé against a senior JD demanding Kubernetes, Terraform and Kafka, none of which the résumé contains. The gaps are the whole point of the product, so they must be reported as gaps.",
+    "adversarial": false,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "fixture:jds/node-backend-senior.txt"
+    },
+    "expect": {
+      "jdSkills": {
+        "required": ["node.js", "typescript", "postgresql", "kubernetes", "terraform"],
+        "forbidden": []
+      },
+      "present": {
+        "required": ["node.js", "typescript", "postgresql"],
+        "forbidden": ["kubernetes", "terraform", "kafka", "grpc"]
+      },
+      "matchScoreRange": [25, 75]
+    }
+  },
+  {
+    "id": "match-domain-mismatch",
+    "feature": "match",
+    "rationale": "Adversarial: a graphic designer's résumé against a senior backend JD. There is no honest overlap. The model must not manufacture one by pattern-matching generic words, and must not report engineering skills as present.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/graphic-designer.txt",
+      "jd": "fixture:jds/node-backend-senior.txt"
+    },
+    "expect": {
+      "jdSkills": {
+        "required": ["node.js", "postgresql"],
+        "forbidden": []
+      },
+      "present": {
+        "required": [],
+        "forbidden": ["node.js", "typescript", "postgresql", "kubernetes", "terraform", "kafka", "docker"]
+      },
+      "matchScoreRange": [0, 20]
+    }
+  },
+  {
+    "id": "match-thin-resume",
+    "feature": "match",
+    "rationale": "Adversarial: an almost-empty junior résumé against a senior JD. Tests whether the model inflates a near-zero match out of politeness — a low score here is the correct, useful answer.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/thin-junior.txt",
+      "jd": "fixture:jds/node-backend-senior.txt"
+    },
+    "expect": {
+      "jdSkills": {
+        "required": ["node.js", "postgresql"],
+        "forbidden": []
+      },
+      "present": {
+        "required": [],
+        "forbidden": ["node.js", "typescript", "postgresql", "kubernetes", "terraform", "docker", "kafka"]
+      },
+      "matchScoreRange": [0, 25]
+    }
+  },
+  {
+    "id": "match-boilerplate-jd",
+    "feature": "match",
+    "rationale": "Adversarial: a JD that is entirely HR boilerplate with no technical content. The system prompt says to skip generic filler, so the model must not invent a tech stack that the posting never mentions.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "fixture:jds/boilerplate-only.txt"
+    },
+    "expect": {
+      "jdSkills": {
+        "required": [],
+        "forbidden": ["node.js", "postgresql", "docker", "redis", "kubernetes", "javascript"]
+      },
+      "present": {
+        "required": [],
+        "forbidden": ["node.js", "postgresql", "docker", "redis", "kubernetes"]
+      }
+    }
+  },
+  {
+    "id": "match-empty-jd",
+    "feature": "match",
+    "rationale": "Adversarial degenerate input: a JD of one meaningless line. Guards the arithmetic edge where no skills are extracted — aiMatch divides by total weight, and the engine must return a zero score rather than NaN or a crash.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "TBD - will update this posting later."
+    },
+    "expect": {
+      "jdSkills": {
+        "required": [],
+        "forbidden": ["node.js", "postgresql", "docker", "redis"]
+      },
+      "matchScoreRange": [0, 10]
+    }
+  }
+]

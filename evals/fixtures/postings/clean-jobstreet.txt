@@ -1,0 +1,23 @@
+Senior Software Engineer (Backend)
+Kaya Financial Inc.
+Bonifacio Global City, Taguig City, Metro Manila
+Full time · Hybrid
+Posted 3 days ago · Php 140,000 – Php 190,000 per month
+
+Job Description
+
+Kaya Financial is hiring a Senior Software Engineer for our payments platform
+team. You will own backend services written in Node.js and TypeScript, backed
+by PostgreSQL and deployed on Kubernetes.
+
+Minimum Qualifications
+- Bachelor's degree in Computer Science, Information Technology or equivalent
+  experience
+- At least 5 years of backend engineering experience
+- Strong Node.js, TypeScript and PostgreSQL
+- Production experience with Kubernetes
+
+Perks and Benefits
+- HMO on day one with two dependents
+- Hybrid setup, three days onsite
+- Annual performance bonus

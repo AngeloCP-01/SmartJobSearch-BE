@@ -1,0 +1,27 @@
+Senior Backend Engineer
+Kaya Financial — Bonifacio Global City, Taguig (Hybrid, 3 days onsite)
+
+About the role
+We are looking for a Senior Backend Engineer to join the payments platform team.
+You will own services that move money, which means correctness, observability
+and careful failure handling matter more here than raw feature velocity.
+
+What you will do
+- Design, build and operate Node.js services in TypeScript.
+- Model data in PostgreSQL and keep queries fast as tables grow past 100M rows.
+- Work with Kubernetes and Terraform to ship and scale those services.
+- Instrument services so failures are visible before customers report them.
+- Participate in a shared on-call rotation.
+
+What we are looking for
+- 5+ years of backend engineering experience.
+- Strong Node.js and TypeScript.
+- Deep PostgreSQL knowledge, including indexing and query tuning.
+- Experience with Kubernetes in production.
+- Experience with Terraform or comparable infrastructure-as-code.
+- Familiarity with message queues such as Kafka or RabbitMQ.
+- Comfortable with Docker and CI/CD pipelines.
+
+Nice to have
+- Payments or fintech background.
+- Experience with gRPC.
