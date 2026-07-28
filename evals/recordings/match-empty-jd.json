@@ -1,0 +1,26 @@
+{
+  "output": {
+    "matchScore": 0,
+    "matched": [],
+    "missing": [],
+    "suggestions": [],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 567,
+      "completionTokens": 123,
+      "totalTokens": 690
+    },
+    "latencyMs": 1017,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 1017,
+    "promptTokens": 567,
+    "completionTokens": 123,
+    "totalTokens": 690
+  }
+}

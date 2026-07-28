@@ -1,6 +1,50 @@
 const {
-  normalizeTerm, hasTerm, scoreMatch, scorePostingParse, scoreTailor, scoreCoverLetter, humanizerViolations,
+  normalizeTerm, hasTerm, claimsTerm, scoreMatch, scorePostingParse, scoreTailor, scoreCoverLetter, humanizerViolations,
 } = require('./scorers');
+
+// --- claim detection ---------------------------------------------------------
+// The first live run flagged 6 "fabrications" that were all false positives: a
+// bare substring match cannot tell "I have Kubernetes experience" from "I have
+// not yet worked with Kubernetes". It penalised the model for being honest,
+// which is backwards. The sentences below are the real outputs from that run,
+// kept as permanent regression cases.
+
+describe('claimsTerm', () => {
+  test('treats a first-person possession phrase as a claim', () => {
+    expect(claimsTerm('I have run Kubernetes clusters in production.', 'kubernetes')).toBe(true);
+    expect(claimsTerm('Across both positions I have worked with Redis-backed queues.', 'redis')).toBe(true);
+    expect(claimsTerm('Say you are proficient in Terraform.', 'terraform')).toBe(true);
+  });
+
+  test('does NOT treat an explicit disclaimer as a claim', () => {
+    expect(claimsTerm('While I have not yet worked with Kubernetes or Terraform in production, I built Docker images.', 'kubernetes')).toBe(false);
+    expect(claimsTerm('Although my professional experience has not yet involved Node.js, TypeScript, or PostgreSQL, I have built personal projects.', 'node.js')).toBe(false);
+  });
+
+  test('does NOT treat naming a gap as a claim', () => {
+    expect(claimsTerm('These design achievements do not demonstrate the backend engineering experience the role requires.', 'backend engineering experience')).toBe(false);
+  });
+
+  test('does NOT treat aspiration as a claim', () => {
+    expect(claimsTerm('I am eager to learn Kubernetes and grow into the infrastructure side.', 'kubernetes')).toBe(false);
+    expect(claimsTerm('I have read about Terraform for infrastructure as code.', 'terraform')).toBe(false);
+  });
+
+  test('a forbidden phrase that is itself claim-shaped needs no extra marker', () => {
+    // "proficient in terraform" already asserts possession; demanding another
+    // "I have" in front of it would let the obvious case through.
+    expect(claimsTerm('Say you are proficient in Terraform.', 'proficient in terraform')).toBe(true);
+    expect(claimsTerm('Add a line about your experience with Kafka.', 'experience with kafka')).toBe(true);
+  });
+
+  test('a bare mention with no possession phrase is not a claim', () => {
+    expect(claimsTerm('The role involves Kubernetes and Terraform.', 'kubernetes')).toBe(false);
+  });
+
+  test('an absent term is never a claim', () => {
+    expect(claimsTerm('I write backend services.', 'kubernetes')).toBe(false);
+  });
+});
 
 // --- term matching -----------------------------------------------------------
 // Every skill check rests on this. Too strict and the scores are noise; too

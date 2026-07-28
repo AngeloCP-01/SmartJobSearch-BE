@@ -1,0 +1,11 @@
+{
+  "output": "I am writing to express my interest in the Senior Backend Engineer position on the payments platform team at Kaya Financial. The focus on correctness, observability and reliable failure handling aligns with the responsibilities I have taken on in my current role at Fleetline Logistics.\n\nAt Fleetline I design, build and operate Node.js services in TypeScript that handle shipment‑tracking requests at roughly 400 RPS during peak periods. I created the PostgreSQL schema for the core shipment and route tables and introduced cursor‑based pagination to keep queries fast as data volume grew. I also containerised the service with Docker and implemented a GitHub Actions pipeline that provisions a temporary PostgreSQL instance for each test run, giving the team a repeatable CI/CD process. My on‑call duties on a two‑week rotation have given me practical experience in monitoring services and responding to incidents before customers notice them.\n\nEarlier, at Ridgeway Solutions I maintained a monolithic Express application backed by MySQL, wrote a full integration test suite of 180 tests, and migrated authentication to a JWT flow with refresh‑token rotation. Across both positions I have worked with Redis‑backed BullMQ queues, performed SQL query tuning, and used Docker daily. While I have not yet worked with Kubernetes or Terraform in production, I have built Docker images for deployment and am comfortable learning infrastructure‑as‑code tools quickly.\n\nI would welcome the opportunity to discuss how my background in building reliable, high‑throughput backend services can contribute to the stability and scalability of Kaya Financial’s payments platform. Please let me know a convenient time for a conversation.",
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 3952,
+    "promptTokens": 940,
+    "completionTokens": 448,
+    "totalTokens": 1388
+  }
+}

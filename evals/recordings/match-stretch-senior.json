@@ -1,0 +1,173 @@
+{
+  "output": {
+    "matchScore": 47,
+    "matched": [
+      {
+        "term": "Node.js",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "TypeScript",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "PostgreSQL",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Query tuning",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Docker",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "CI/CD pipelines",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Fintech",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "On-call rotation",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      }
+    ],
+    "missing": [
+      {
+        "term": "Indexing",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kubernetes",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Terraform",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kafka",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "RabbitMQ",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Payments",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "gRPC",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Observability",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Failure handling",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      }
+    ],
+    "suggestions": [
+      {
+        "text": "Gain hands‑on experience with Kubernetes for container orchestration and scaling production services.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Learn Terraform or another IaC tool to manage infrastructure as code.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Familiarize yourself with message‑queue systems like Kafka or RabbitMQ for reliable event processing.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Study gRPC and its use cases for high‑performance inter‑service communication.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Deepen knowledge of PostgreSQL indexing strategies to complement existing query‑tuning skills.",
+        "severity": "medium",
+        "source": "ai"
+      }
+    ],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 790,
+      "completionTokens": 1069,
+      "totalTokens": 1859
+    },
+    "latencyMs": 8393,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 8393,
+    "promptTokens": 790,
+    "completionTokens": 1069,
+    "totalTokens": 1859
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "output": {
+    "position": "Web Developer (Mid-Level)",
+    "companyName": "Bagong Sigla Tech Solutions Inc.",
+    "salaryMin": 420000,
+    "salaryMax": 540000,
+    "workMode": "OnSite",
+    "jobDescription": "Hi po! Kami po ay naghahanap ng Web Developer na willing mag-start ASAP.\n\nQualifications:\n* At least 2-3 years experience sa web development\n* Must know PHP (Laravel) and MySQL\n* Knowledge in JavaScript / jQuery is a plus\n* Willing to work onsite, Mon-Fri, 9am-6pm\n* Fresh grads with strong portfolio are welcome to apply"
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 3565,
+    "promptTokens": 404,
+    "completionTokens": 550,
+    "totalTokens": 954
+  }
+}

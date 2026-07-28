@@ -1,0 +1,148 @@
+{
+  "output": {
+    "matchScore": 0,
+    "matched": [],
+    "missing": [
+      {
+        "term": "Node.js",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "TypeScript",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "PostgreSQL",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "indexing",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "query tuning",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kubernetes",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Terraform",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "message queues",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kafka",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "RabbitMQ",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Docker",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "CI/CD pipelines",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "payments",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "fintech",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "gRPC",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      }
+    ],
+    "suggestions": [
+      {
+        "text": "Acquire hands‑on experience with Node.js and TypeScript to build backend services.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Develop PostgreSQL performance skills, focusing on indexing and query tuning for large tables.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Learn container orchestration (Kubernetes) and infrastructure‑as‑code (Terraform) along with Docker and CI/CD pipeline setup.",
+        "severity": "high",
+        "source": "ai"
+      }
+    ],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 666,
+      "completionTokens": 729,
+      "totalTokens": 1395
+    },
+    "latencyMs": 4567,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 4567,
+    "promptTokens": 666,
+    "completionTokens": 729,
+    "totalTokens": 1395
+  }
+}

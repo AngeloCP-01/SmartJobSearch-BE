@@ -1,0 +1,18 @@
+{
+  "output": {
+    "position": "Full Stack Developer",
+    "companyName": "Sablay Digital",
+    "salaryMin": null,
+    "salaryMax": null,
+    "workMode": null,
+    "jobDescription": "Sablay Digital is looking for a full stack developer to join our small product team. You'll work across a React frontend and a Node.js API, and you'll have a real say in what we build next.\n\nYou should be comfortable with:\n- React and modern JavaScript\n- Node.js and Express\n- Working with a relational database\n- Reading someone else's code without complaining too much\n\nSend us a short note about something you've built. No cover letter templates please, we can tell."
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 2264,
+    "promptTokens": 363,
+    "completionTokens": 307,
+    "totalTokens": 670
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "output": [
+    {
+      "kind": "emphasize",
+      "text": "Place this bullet at the top of the experience section to showcase Node.js API work",
+      "why": "Shows direct experience building REST APIs in Node.js and Express, core job requirement",
+      "groundedIn": "this résumé",
+      "anchor": "Built and maintained a shipment-tracking API in Node.js and Express",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Move this bullet higher to highlight SQL expertise",
+      "why": "Demonstrates solid SQL schema design and query optimization, matching the SQL requirement",
+      "groundedIn": "this résumé",
+      "anchor": "Designed the PostgreSQL schema for the shipment and route tables",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Highlight this bullet to underline Redis background‑job experience",
+      "why": "Shows practical experience with Redis and background job queues, a key requirement",
+      "groundedIn": "this résumé",
+      "anchor": "Moved nightly report generation into a Redis-backed BullMQ queue",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Feature this bullet to prove Docker and CI pipeline skills",
+      "why": "Confirms comfort with Docker images and a GitHub Actions CI pipeline, required for the role",
+      "groundedIn": "this résumé",
+      "anchor": "Containerised the service with Docker and set up the GitHub Actions pipeline",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Emphasize this bullet to note on‑call experience",
+      "why": "Indicates experience carrying a pager, a plus for the position",
+      "groundedIn": "this résumé",
+      "anchor": "Carried the on-call pager on a two-week rotation",
+      "severity": "medium"
+    },
+    {
+      "kind": "rephrase",
+      "text": "Wrote a Jest and Supertest integration test suite covering 180 tests",
+      "why": "Clarifies test writing experience with the exact tools the job uses",
+      "groundedIn": "this résumé",
+      "anchor": "Wrote the integration test suite (Jest + Supertest) from zero to 180 tests",
+      "severity": "medium"
+    }
+  ],
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 10092,
+    "promptTokens": 1399,
+    "completionTokens": 1620,
+    "totalTokens": 3019
+  }
+}

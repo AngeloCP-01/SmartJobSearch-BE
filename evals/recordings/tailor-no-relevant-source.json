@@ -1,0 +1,52 @@
+{
+  "output": [
+    {
+      "kind": "remove",
+      "text": "Graphic Designer — Cebu City, Philippines",
+      "why": "The title emphasizes graphic design, which does not align with a senior backend engineering role",
+      "groundedIn": "this résumé",
+      "anchor": "Graphic Designer — Cebu City, Philippines",
+      "severity": "high"
+    },
+    {
+      "kind": "rephrase",
+      "text": "Seasoned professional with 6 years of experience delivering precise, detail‑oriented solutions for complex projects",
+      "why": "A more generic summary highlights transferable qualities like precision and problem solving relevant to backend engineering",
+      "groundedIn": "this résumé",
+      "anchor": "Graphic designer with 6 years in brand identity, packaging and print production for retail and food-service clients across the Visayas.",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Managed press checks and coordinated directly with offset printers on stock, ink coverage and die-cut specifications",
+      "why": "Emphasizing coordination and failure handling shows experience with monitoring and reliability, useful for on‑call responsibilities",
+      "groundedIn": "this résumé",
+      "anchor": "Managed press checks and coordinated directly with offset printers on stock, ink coverage and die-cut specifications.",
+      "severity": "medium"
+    },
+    {
+      "kind": "remove",
+      "text": "Adobe Illustrator, Adobe Photoshop, Adobe InDesign, Figma, brand identity, packaging design, typography, colour theory, print production, prepress",
+      "why": "Design‑specific tool list distracts from technical relevance for a backend position",
+      "groundedIn": "this résumé",
+      "anchor": "Adobe Illustrator, Adobe Photoshop, Adobe InDesign, Figma, brand identity, packaging design, typography, colour theory, print production, prepress",
+      "severity": "medium"
+    },
+    {
+      "kind": "remove",
+      "text": "Senior Graphic Designer, Casa Marikit Studio (2022 - present) – Led brand identity work for 14 clients, including logo systems, colour palettes and typography guidelines. – Produced packaging artwork for a regional snack‑food line sold in 300 stores.",
+      "why": "These design‑focused achievements do not demonstrate the backend engineering experience the role requires",
+      "groundedIn": "this résumé",
+      "anchor": "Senior Graphic Designer, Casa Marikit Studio (2022 - present)",
+      "severity": "low"
+    }
+  ],
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 9348,
+    "promptTokens": 1205,
+    "completionTokens": 1324,
+    "totalTokens": 2529
+  }
+}
