@@ -1,0 +1,54 @@
+[
+  {
+    "id": "cover-letter-aligned",
+    "feature": "cover-letter",
+    "rationale": "The happy path. A well-matched résumé and JD should produce a letter that actually uses the résumé's concrete achievements rather than generic enthusiasm, and that obeys the humanizer rules the prompt encodes.",
+    "adversarial": false,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "fixture:jds/node-backend-aligned.txt"
+    },
+    "expect": {
+      "mustMention": ["node", "postgres"],
+      "forbiddenClaims": ["kubernetes", "terraform", "kafka", "10 years"],
+      "enforceHumanizer": true
+    }
+  },
+  {
+    "id": "cover-letter-humanizer-stress",
+    "feature": "cover-letter",
+    "rationale": "Adversarial for style rather than facts: a fintech JD full of the exact register that pulls models toward AI-tell vocabulary — passionate, thrilled, leverage, robust, seamless, spearheaded. The prompt bans these and humanize() strips em dashes and emoji afterwards; this measures how much correcting the model actually needed.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/node-backend-mid.txt",
+      "jd": "fixture:jds/node-backend-senior.txt"
+    },
+    "expect": {
+      "mustMention": ["node", "postgres"],
+      "forbiddenClaims": ["kubernetes", "terraform", "kafka"],
+      "enforceHumanizer": true
+    }
+  },
+  {
+    "id": "cover-letter-thin-resume-no-fabrication",
+    "feature": "cover-letter",
+    "rationale": "Adversarial: an almost-empty junior résumé against a senior JD. A cover letter has no groundedIn backstop the way tailoring does, so this is the only place fabrication is caught. The model must write a short honest letter rather than inventing a career.",
+    "adversarial": true,
+    "input": {
+      "resume": "fixture:resumes/thin-junior.txt",
+      "jd": "fixture:jds/node-backend-senior.txt"
+    },
+    "expect": {
+      "mustMention": [],
+      "forbiddenClaims": [
+        "years of experience",
+        "led a team",
+        "node.js",
+        "postgresql",
+        "kubernetes",
+        "production experience"
+      ],
+      "enforceHumanizer": true
+    }
+  }
+]

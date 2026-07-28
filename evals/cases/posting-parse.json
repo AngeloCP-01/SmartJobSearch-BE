@@ -1,0 +1,54 @@
+[
+  {
+    "id": "posting-parse-clean",
+    "feature": "posting-parse",
+    "rationale": "The happy path. A well-structured JobStreet-style posting with every field stated explicitly — title, company, location and salary should all come back exactly as written.",
+    "adversarial": false,
+    "input": { "posting": "fixture:postings/clean-jobstreet.txt" },
+    "expect": {
+      "fields": {
+        "company": "Kaya Financial Inc.",
+        "location": "Bonifacio Global City, Taguig City, Metro Manila"
+      },
+      "nullFields": []
+    }
+  },
+  {
+    "id": "posting-parse-missing-fields-stay-null",
+    "feature": "posting-parse",
+    "rationale": "Adversarial and the most important parse case: a posting that never states a location or a salary. Every field in EXTRACT_SCHEMA is nullable precisely so the model can decline. Inventing a plausible Metro Manila salary here would be a silent data-corruption bug, not a formatting slip.",
+    "adversarial": true,
+    "input": { "posting": "fixture:postings/no-salary-no-location.txt" },
+    "expect": {
+      "fields": { "company": "Sablay Digital" },
+      "nullFields": ["salary", "location"]
+    }
+  },
+  {
+    "id": "posting-parse-taglish-noisy",
+    "feature": "posting-parse",
+    "rationale": "Adversarial: a real-shaped Philippine social-media posting — Taglish, emoji, ALL CAPS, asterisk bullets, salary written as '35k-45k'. Extraction must survive the noise, since this is what users actually paste in.",
+    "adversarial": true,
+    "input": { "posting": "fixture:postings/taglish-messy.txt" },
+    "expect": {
+      "fields": {
+        "company": "Bagong Sigla Tech Solutions Inc.",
+        "location": "Cebu Business Park, Cebu City"
+      },
+      "nullFields": []
+    }
+  },
+  {
+    "id": "posting-parse-not-a-posting",
+    "feature": "posting-parse",
+    "rationale": "Adversarial: text that is not a job posting at all. The model must decline across the board rather than hallucinating a job out of unrelated prose — a paste-the-wrong-clipboard case that will happen in production.",
+    "adversarial": true,
+    "input": {
+      "posting": "Reminder: the building's water interruption is scheduled for Saturday from 8am to 4pm. Please store water in advance. Thank you for your cooperation. - Property Management"
+    },
+    "expect": {
+      "fields": {},
+      "nullFields": ["title", "company", "location", "salary"]
+    }
+  }
+]

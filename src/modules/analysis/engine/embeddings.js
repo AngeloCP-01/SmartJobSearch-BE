@@ -1,4 +1,5 @@
 const { resolveProvider, OpenRouterError } = require('./openrouter');
+const { logger } = require('../../../shared/observability/logger');
 
 const DEFAULT_EMBEDDING_MODEL = 'nvidia:nvidia/nv-embedqa-e5-v5';
 const EMBED_TIMEOUT_MS = 30000;
@@ -22,11 +23,12 @@ async function embed(texts, inputType) {
     throw new OpenRouterError(`invalid input_type: ${inputType}`, 'config');
   }
   if (!Array.isArray(texts) || texts.length === 0) return [];
-  const { model, baseUrl, key } = resolveProvider(embeddingSpec());
+  const { provider, model, baseUrl, key } = resolveProvider(embeddingSpec());
   if (!key) throw new OpenRouterError(`API key not configured for the embedding provider (${embeddingSpec()})`, 'config');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), EMBED_TIMEOUT_MS);
+  const startedAt = Date.now();
   try {
     let res;
     try {
@@ -47,6 +49,18 @@ async function embed(texts, inputType) {
     const data = await res.json();
     const vectors = (data && data.data ? data.data : []).map((d) => d.embedding);
     if (vectors.length !== texts.length) throw new OpenRouterError('embedding count mismatch', 'parse');
+    // The vectors are the return value, so cost/latency can only surface here.
+    // batchSize + inputType separate the two very different callers: bulk
+    // 'passage' indexing (rare, large) vs. per-search 'query' (frequent, tiny).
+    logger.info({
+      model,
+      provider,
+      inputType,
+      batchSize: texts.length,
+      latencyMs: Date.now() - startedAt,
+      promptTokens: Number.isFinite(data?.usage?.prompt_tokens) ? data.usage.prompt_tokens : null,
+      totalTokens: Number.isFinite(data?.usage?.total_tokens) ? data.usage.total_tokens : null,
+    }, '[ai] embedding');
     return vectors;
   } finally {
     clearTimeout(timer);
