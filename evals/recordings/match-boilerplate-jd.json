@@ -1,0 +1,111 @@
+{
+  "output": {
+    "matchScore": 0,
+    "matched": [],
+    "missing": [
+      {
+        "term": "team player",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "communication",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "attention to detail",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "work under pressure",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "deadline management",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "self-motivated",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "positive attitude",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "onsite availability",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      },
+      {
+        "term": "overtime flexibility",
+        "type": "soft",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 2
+      }
+    ],
+    "suggestions": [
+      {
+        "text": "Add concrete examples of teamwork and collaboration from your projects",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Describe situations where you met tight deadlines or handled high-pressure incidents",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Highlight your communication abilities, such as stakeholder updates or documentation work",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "State your willingness to work onsite in Makati and to do overtime when needed",
+        "severity": "high",
+        "source": "ai"
+      }
+    ],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 741,
+      "completionTokens": 928,
+      "totalTokens": 1669
+    },
+    "latencyMs": 7802,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 7802,
+    "promptTokens": 741,
+    "completionTokens": 928,
+    "totalTokens": 1669
+  }
+}

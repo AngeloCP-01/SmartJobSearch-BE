@@ -1,0 +1,141 @@
+{
+  "output": {
+    "matchScore": 100,
+    "matched": [
+      {
+        "term": "Node.js",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Express",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "PostgreSQL",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Redis",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Docker",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "GitHub Actions",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Jest",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "Supertest",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "REST APIs",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "SQL",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "JavaScript",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "TypeScript",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "background jobs",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      },
+      {
+        "term": "CI pipeline",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 1,
+        "weight": 4
+      }
+    ],
+    "missing": [],
+    "suggestions": [
+      {
+        "text": "Deepen expertise in PostgreSQL performance analysis, especially using EXPLAIN plans for complex queries.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Gain experience with advanced Redis patterns (e.g., Lua scripting, Redis Streams) for more sophisticated background processing.",
+        "severity": "medium",
+        "source": "ai"
+      },
+      {
+        "text": "Explore additional CI/CD platforms such as CircleCI or GitLab CI to broaden pipeline automation skills.",
+        "severity": "low",
+        "source": "ai"
+      }
+    ],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 735,
+      "completionTokens": 941,
+      "totalTokens": 1676
+    },
+    "latencyMs": 6139,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 6139,
+    "promptTokens": 735,
+    "completionTokens": 941,
+    "totalTokens": 1676
+  }
+}

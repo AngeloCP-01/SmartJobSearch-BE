@@ -1,0 +1,134 @@
+{
+  "output": {
+    "matchScore": 0,
+    "matched": [],
+    "missing": [
+      {
+        "term": "Node.js",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "TypeScript",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "PostgreSQL",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Indexing",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Query tuning",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kubernetes",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Terraform",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Kafka",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "RabbitMQ",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Docker",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "CI/CD pipelines",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "Payments",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      },
+      {
+        "term": "gRPC",
+        "type": "hard",
+        "jdCount": 1,
+        "resumeCount": 0,
+        "weight": 4
+      }
+    ],
+    "suggestions": [
+      {
+        "text": "Build practical experience with Node.js and TypeScript by contributing to open‑source backend projects or personal APIs.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Study PostgreSQL performance techniques, focusing on indexing strategies and query optimization for large tables.",
+        "severity": "high",
+        "source": "ai"
+      },
+      {
+        "text": "Get hands‑on with container orchestration and infrastructure‑as‑code tools like Kubernetes and Terraform through labs or cloud sandbox environments.",
+        "severity": "high",
+        "source": "ai"
+      }
+    ],
+    "model": "nvidia:openai/gpt-oss-120b",
+    "provider": "nvidia",
+    "usage": {
+      "promptTokens": 532,
+      "completionTokens": 630,
+      "totalTokens": 1162
+    },
+    "latencyMs": 4606,
+    "fallbackDepth": 0,
+    "sweep": 1
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 4606,
+    "promptTokens": 532,
+    "completionTokens": 630,
+    "totalTokens": 1162
+  }
+}

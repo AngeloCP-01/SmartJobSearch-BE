@@ -1,0 +1,76 @@
+{
+  "output": [
+    {
+      "kind": "emphasize",
+      "text": "Highlight TypeScript expertise in the Skills section",
+      "why": "Job requires strong TypeScript skills",
+      "groundedIn": "this résumé",
+      "anchor": "TypeScript",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Stress deep PostgreSQL experience and schema design",
+      "why": "Role needs deep PostgreSQL knowledge and indexing",
+      "groundedIn": "this résumé",
+      "anchor": "Designed the PostgreSQL schema for the shipment and route tables",
+      "severity": "high"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Show familiarity with message queues via BullMQ",
+      "why": "Job looks for experience with Kafka or RabbitMQ; BullMQ demonstrates queue handling",
+      "groundedIn": "this résumé",
+      "anchor": "Moved nightly report generation into a Redis-backed BullMQ queue",
+      "severity": "medium"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Highlight Docker containerisation and GitHub Actions CI/CD pipeline",
+      "why": "Position expects Docker and CI/CD pipeline experience",
+      "groundedIn": "this résumé",
+      "anchor": "Containerised the service with Docker and set up the GitHub Actions pipeline",
+      "severity": "medium"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Emphasize participation in on‑call rotation",
+      "why": "Shared on‑call rotation is a required responsibility",
+      "groundedIn": "this résumé",
+      "anchor": "Carried the on‑call pager on a two‑week rotation",
+      "severity": "medium"
+    },
+    {
+      "kind": "rephrase",
+      "text": "Change \"SQL query tuning\" to \"indexing and query tuning\"",
+      "why": "Matches the job’s focus on PostgreSQL indexing and query optimization",
+      "groundedIn": "this résumé",
+      "anchor": "SQL query tuning",
+      "severity": "low"
+    },
+    {
+      "kind": "remove",
+      "text": "Delete \"MySQL\" from the Skills list",
+      "why": "Job centers on PostgreSQL; removing unrelated DB reduces distraction",
+      "groundedIn": "this résumé",
+      "anchor": "MySQL",
+      "severity": "low"
+    },
+    {
+      "kind": "emphasize",
+      "text": "Stress REST API design experience",
+      "why": "Role involves building Node.js services that expose APIs",
+      "groundedIn": "this résumé",
+      "anchor": "REST API design",
+      "severity": "low"
+    }
+  ],
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 9640,
+    "promptTokens": 1454,
+    "completionTokens": 1472,
+    "totalTokens": 2926
+  }
+}

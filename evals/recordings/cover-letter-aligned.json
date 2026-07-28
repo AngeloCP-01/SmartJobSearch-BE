@@ -1,0 +1,11 @@
+{
+  "output": "I am writing to express my interest in the Backend Engineer role at the company. The focus on reliable order and fulfilment services aligns with the work I have done building logistics APIs, and I am eager to contribute to a team that values fast, maintainable backends.\n\nAt Fleetline Logistics I built a shipment‑tracking API with Node.js and Express that handled roughly 400 requests per second at peak. I owned the service from schema design through deployment, creating a PostgreSQL schema for shipments and routes and introducing cursor‑based pagination to keep queries performant beyond page 400. The API remains stable under load and supports the kind of traffic described in your job posting.\n\nMy experience with Redis and background processing includes moving nightly report generation into a BullMQ queue, which reduced the p99 latency of the reports endpoint from eight seconds to 240 milliseconds. I containerised the service with Docker, configured a GitHub Actions pipeline that runs the full test suite against a temporary PostgreSQL instance, and maintained the pipeline to keep builds reliable. I also wrote a Jest and Supertest integration suite of 180 tests for a prior Express application, and I have carried an on‑call pager on a two‑week rotation, giving me practical exposure to production monitoring.\n\nI would welcome a conversation to discuss how my background in Node.js, PostgreSQL, Redis, Docker, and CI pipelines can support the backend needs of the company. Please let me know a convenient time for a call or meeting.",
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 5156,
+    "promptTokens": 885,
+    "completionTokens": 638,
+    "totalTokens": 1523
+  }
+}

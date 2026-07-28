@@ -1,0 +1,18 @@
+{
+  "output": {
+    "position": null,
+    "companyName": null,
+    "salaryMin": null,
+    "salaryMax": null,
+    "workMode": null,
+    "jobDescription": null
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 668,
+    "promptTokens": 291,
+    "completionTokens": 87,
+    "totalTokens": 378
+  }
+}

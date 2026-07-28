@@ -1,0 +1,11 @@
+{
+  "output": "I am interested in the Senior Backend Engineer position at Kaya Financial because the focus on reliable money‑moving services aligns with my desire to build systems where correctness and observability are paramount.  \n\nMy formal training includes a Bachelor of Science in Information Technology (2025) where I studied software development fundamentals, data structures, and relational databases. During a three‑month internship at Bright Path IT Services I assisted the team in testing a web application, documented defects in a shared spreadsheet, and communicated findings to developers. This experience introduced me to systematic debugging, issue tracking, and the importance of clear reporting for maintaining service quality.  \n\nAlthough my professional experience has not yet involved Node.js, TypeScript, or large‑scale PostgreSQL deployments, I have built several personal projects using JavaScript and have explored TypeScript syntax through online coursework. I am familiar with container concepts through Docker tutorials and have read about Kubernetes orchestration and Terraform for infrastructure as code. My academic projects required me to design simple schemas and write SQL queries, giving me a foundation that I am eager to extend to high‑volume data models.  \n\nI would welcome a conversation to discuss how my technical foundation, disciplined testing habits, and commitment to continuous learning could contribute to the payments platform team. Please let me know a convenient time for a brief call.",
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 4695,
+    "promptTokens": 682,
+    "completionTokens": 808,
+    "totalTokens": 1490
+  }
+}

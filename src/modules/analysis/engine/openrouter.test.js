@@ -219,11 +219,11 @@ test('throws the last error when every model is exhausted', async () => {
 // it away. These assert the numbers survive to the caller AND reach the logs,
 // since the log line is the only durable record once the request is over.
 
-const usageOk = (payload, usage) => ({
+const usageOkFor = (payload, usage) => ({
   ok: true,
   json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }], usage }),
 });
-const EMPTY_USAGE_OK = (usage) => usageOk({ skills: [], suggestions: [] }, usage);
+const EMPTY_USAGE_OK = (usage) => usageOkFor({ skills: [], suggestions: [] }, usage);
 
 test('completion reports the token usage the provider returned', async () => {
   global.fetch = jest.fn().mockResolvedValue(EMPTY_USAGE_OK({ prompt_tokens: 120, completion_tokens: 45, total_tokens: 165 }));
@@ -288,6 +288,22 @@ test('a completion served by the post-Retry-After re-sweep is logged as sweep 2'
   });
   await completeWithFallback('r', 'j');
   expect(info).toHaveBeenCalledWith(expect.objectContaining({ sweep: 2 }), '[ai] completion');
+});
+
+// aiMatch reshapes the completion into matched/missing entries and returned a
+// hand-built object, which silently dropped the telemetry its own caller had
+// just produced. The [ai] completion log still fired, so this was invisible
+// until a consumer (the eval runner) tried to read tokens off the return.
+test('aiMatch propagates the telemetry rather than dropping it in the reshape', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free';
+  global.fetch = jest.fn().mockResolvedValue(usageOkFor(
+    { skills: [{ term: 'java', type: 'hard', present: true }], suggestions: [] },
+    { prompt_tokens: 735, completion_tokens: 1010, total_tokens: 1745 },
+  ));
+  const r = await aiMatch('java', 'need java');
+  expect(r.usage).toEqual({ promptTokens: 735, completionTokens: 1010, totalTokens: 1745 });
+  expect(typeof r.latencyMs).toBe('number');
+  expect(r.fallbackDepth).toBe(0);
 });
 
 test('freeform text generation carries the same telemetry as JSON completion', async () => {

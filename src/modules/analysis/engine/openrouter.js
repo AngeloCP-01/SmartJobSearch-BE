@@ -319,7 +319,10 @@ function generateJson(messages, schema) {
 }
 
 async function aiMatch(resumeText, jobDescription) {
-  const { result, model } = await completeWithFallback(resumeText, jobDescription);
+  // Keep the telemetry: this function reshapes the completion into
+  // matched/missing entries, and building a fresh object would drop the
+  // usage/latency/fallbackDepth the fallback wrapper just attached.
+  const { result, model, ...telemetry } = await completeWithFallback(resumeText, jobDescription);
   const matched = [];
   const missing = [];
   let total = 0;
@@ -334,7 +337,7 @@ async function aiMatch(resumeText, jobDescription) {
   matched.sort((a, b) => b.weight - a.weight);
   missing.sort((a, b) => b.weight - a.weight);
   const suggestions = result.suggestions.map((x) => ({ text: x.text, severity: x.severity, source: 'ai' }));
-  return { matchScore, matched, missing, suggestions, model };
+  return { matchScore, matched, missing, suggestions, model, ...telemetry };
 }
 
 module.exports = {

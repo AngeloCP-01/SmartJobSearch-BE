@@ -62,9 +62,65 @@ function summarize(checks, metrics = {}) {
   };
 }
 
-// Case-insensitive substring search, used for free prose (letters, suggestion
-// text) where a claim can be phrased many ways and any occurrence is a hit.
+// Case-insensitive substring search. Only appropriate where any occurrence is
+// meaningful (did the letter mention Node at all?) — NOT for fabrication
+// checks, which need claimsTerm below.
 const mentions = (haystack, needle) => String(haystack || '').toLowerCase().includes(String(needle).toLowerCase());
+
+// Does the text CLAIM the term, as opposed to merely naming it?
+//
+// The first live run flagged six fabrications that were every one a false
+// positive. The model had written "While I have not yet worked with Kubernetes
+// or Terraform in production" and "my professional experience has not yet
+// involved Node.js" — honest disclosures — and a bare substring match scored
+// them as fabrications. The check penalised the model for exactly the behaviour
+// the case was built to reward.
+//
+// So: look at the window of text before the term. A disclaimer or an aspiration
+// disqualifies it; otherwise it counts only if a possession phrase is present.
+//
+// This is a heuristic and it is meant to be. Deciding whether prose overclaims
+// is a judgement call, and the honest place for it is the LLM-as-judge tier
+// (Phase 3). What this buys is a cheap, deterministic pre-filter that no longer
+// gets the easy cases backwards.
+const WINDOW = 90;
+
+// Phrases that turn a nearby term into a non-claim.
+const DISCLAIMERS = [
+  'not', "n't", 'never', 'without', 'lack', 'unfamiliar', 'no experience', 'yet to',
+  'eager to', 'excited to', 'hope to', 'would like to', 'want to', 'looking to',
+  'learn', 'learning', 'read about', 'explored', 'exploring', 'curious about',
+  'do not demonstrate', 'does not', 'requires', 'the role', 'job asks', 'posting',
+];
+
+// Phrases that make a nearby term an assertion about the candidate.
+const POSSESSION = [
+  'i have', "i've", 'i had', 'i built', 'i build', 'i used', 'i use', 'i worked', 'i work',
+  'i ran', 'i run', 'i led', 'i designed', 'i wrote', 'i managed', 'i maintained',
+  'my ', 'experience with', 'experience in', 'experienced', 'proficient', 'expert',
+  'skilled', 'familiar with', 'fluent in', 'strong in', 'years of',
+];
+
+function claimsTerm(text, term) {
+  const haystack = String(text || '').toLowerCase();
+  const needle = String(term).toLowerCase();
+
+  let from = 0;
+  for (;;) {
+    const at = haystack.indexOf(needle, from);
+    if (at < 0) return false;
+    const before = haystack.slice(Math.max(0, at - WINDOW), at);
+    const disclaimed = DISCLAIMERS.some((d) => before.includes(d));
+    // Search the term itself as well as the run-up: a forbidden phrase like
+    // "proficient in terraform" already asserts possession, and demanding a
+    // separate "I have" in front of it would let the obvious case through.
+    const possessed = POSSESSION.some((p) => (before + needle).includes(p));
+    // One honest mention elsewhere does not excuse a claim here, so keep
+    // scanning every occurrence and report a claim if any of them is one.
+    if (!disclaimed && possessed) return true;
+    from = at + needle.length;
+  }
+}
 
 // --- match -------------------------------------------------------------------
 
@@ -156,7 +212,7 @@ function scoreTailor(suggestions, expected) {
 
   const allText = list.map((s) => `${s.text} ${s.why}`).join('\n');
   for (const claim of expected.forbiddenClaims) {
-    checks.push(check(`no-forbidden-claim:${claim}`, !mentions(allText, claim), `suggestions must not tell the user to claim "${claim}"`));
+    checks.push(check(`no-forbidden-claim:${claim}`, !claimsTerm(allText, claim), `suggestions must not tell the user to claim "${claim}"`));
   }
 
   if (expected.maxSuggestions) {
@@ -167,7 +223,7 @@ function scoreTailor(suggestions, expected) {
     suggestionCount: list.length,
     addCount: adds.length,
     ungroundedAdds: ungrounded.length,
-    fabrications: ungrounded.length + expected.forbiddenClaims.filter((c) => mentions(allText, c)).length,
+    fabrications: ungrounded.length + expected.forbiddenClaims.filter((c) => claimsTerm(allText, c)).length,
   });
 }
 
@@ -209,9 +265,11 @@ function scoreCoverLetter(text, expected) {
     checks.push(check(`mentions:${term}`, mentions(text, term), `letter should draw on "${term}" from the résumé`));
   }
   // A cover letter has no groundedIn backstop the way tailoring does, so this is
-  // the only place fabrication gets caught for this feature.
+  // the only place fabrication gets caught for this feature. Naming a gap
+  // honestly ("I have not yet worked with Kubernetes") is the behaviour we want,
+  // so this asks whether the term is CLAIMED, not whether it appears.
   for (const claim of expected.forbiddenClaims) {
-    checks.push(check(`no-forbidden-claim:${claim}`, !mentions(text, claim), `the résumé does not support "${claim}"`));
+    checks.push(check(`no-forbidden-claim:${claim}`, !claimsTerm(text, claim), `the résumé does not support a claim of "${claim}"`));
   }
 
   const violations = humanizerViolations(text);
@@ -223,7 +281,7 @@ function scoreCoverLetter(text, expected) {
     wordCount: String(text || '').trim().split(/\s+/).filter(Boolean).length,
     humanizerViolations: violations.total,
     bannedWords: violations.bannedWords,
-    fabrications: expected.forbiddenClaims.filter((c) => mentions(text, c)).length,
+    fabrications: expected.forbiddenClaims.filter((c) => claimsTerm(text, c)).length,
   });
 }
 
@@ -235,6 +293,6 @@ const SCORERS = {
 };
 
 module.exports = {
-  normalizeTerm, canonical, hasTerm, humanizerViolations,
+  normalizeTerm, canonical, hasTerm, claimsTerm, humanizerViolations,
   scoreMatch, scorePostingParse, scoreTailor, scoreCoverLetter, SCORERS, BANNED_WORDS,
 };

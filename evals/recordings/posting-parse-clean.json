@@ -1,0 +1,18 @@
+{
+  "output": {
+    "position": "Senior Software Engineer (Backend)",
+    "companyName": "Kaya Financial Inc.",
+    "salaryMin": 1680000,
+    "salaryMax": 2280000,
+    "workMode": "Hybrid",
+    "jobDescription": "Kaya Financial is hiring a Senior Software Engineer for our payments platform team. You will own backend services written in Node.js and TypeScript, backed by PostgreSQL and deployed on Kubernetes.\n\nMinimum Qualifications\n- Bachelor's degree in Computer Science, Information Technology or equivalent experience\n- At least 5 years of backend engineering experience\n- Strong Node.js, TypeScript and PostgreSQL\n- Production experience with Kubernetes\n\nPerks and Benefits\n- HMO on day one with two dependents\n- Hybrid setup, three days onsite\n- Annual performance bonus"
+  },
+  "telemetry": {
+    "model": "nvidia:openai/gpt-oss-120b",
+    "fallbackDepth": 0,
+    "latencyMs": 2883,
+    "promptTokens": 422,
+    "completionTokens": 423,
+    "totalTokens": 845
+  }
+}
