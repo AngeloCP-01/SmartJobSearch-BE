@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const routes = require('./routes');
+const v2Routes = require('./routes/v2');
 const { errorHandler } = require('./shared/middleware/error');
 const { httpLogger } = require('./shared/observability/logger');
 
@@ -40,14 +41,30 @@ const authLimiter = limiter({
   message: { error: { message: 'Too many attempts — please try again later.', code: 'RATE_LIMITED' } },
 });
 
-// Canonical versioned mount + an unversioned alias so existing clients keep
-// working. The same router is mounted at both prefixes.
-for (const base of ['/api/v1', '/api']) {
+// Canonical versioned mounts + an unversioned alias so existing clients keep
+// working. v1 and the bare alias share one router; v2 swaps in paginated list
+// handlers and falls through to v1 for everything else.
+//
+// Order is load-bearing. app.use('/api', …) also prefix-matches '/api/v2/...',
+// and Express runs every matching app.use in registration order until a
+// response is sent — so if v2 came last, each v2 request would pass through
+// apiLimiter twice and get half the intended rate budget. Registering v2 first
+// means the v2 router responds before the '/api' chain ever runs.
+// Guarded by tests/app-mounts.test.js, because the limiter is a no-op under
+// NODE_ENV=test and a double-increment is otherwise invisible to the suite.
+const API_MOUNTS = [
+  { base: '/api/v2', routes: v2Routes },
+  { base: '/api/v1', routes },
+  { base: '/api', routes },
+];
+
+for (const { base, routes: mounted } of API_MOUNTS) {
   app.use(base, apiLimiter);
   app.use(`${base}/auth`, authLimiter);
-  app.use(base, routes);
+  app.use(base, mounted);
 }
 
 app.use(errorHandler);
 
 module.exports = app;
+module.exports.API_MOUNTS = API_MOUNTS;

@@ -42,7 +42,15 @@ async function list(userId, {
   status, companyId, search, sort = 'createdAt', dir = 'desc', skip, take,
 } = {}) {
   const where = buildWhere(userId, { status, companyId, search });
-  const orderBy = (ORDER_BY[sort] || ORDER_BY.createdAt)(dir);
+  // `id` breaks ties so the sort is a total order. SQL guarantees nothing about
+  // the relative order of rows with equal sort keys, so without this a row
+  // sharing a createdAt (or status, or company) with others could in principle
+  // land on both page 1 and page 2 while another is never returned.
+  // Not a reproduced bug — Postgres returns a stable order for the small tables
+  // tested here — but the plan can change as tables grow or indexes are added,
+  // and the guarantee costs nothing. Same reason activity orders by
+  // [createdAt, id].
+  const orderBy = [(ORDER_BY[sort] || ORDER_BY.createdAt)(dir), { id: dir }];
 
   if (take === undefined) {
     const items = await prisma.application.findMany({ where, orderBy, include: includeCompany });

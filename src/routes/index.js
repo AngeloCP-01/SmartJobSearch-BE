@@ -27,7 +27,7 @@ router.use('/', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/companies', companiesRoutes);
 router.use('/contacts', contactsRoutes);
-router.use('/applications', applicationsRoutes);
+router.use('/applications', applicationsRoutes.v1);
 router.use('/interviews', interviewsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);
