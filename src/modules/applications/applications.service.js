@@ -10,12 +10,53 @@ async function assertCompany(userId, companyId) {
   if (!company) throw new NotFoundError('Company not found');
 }
 
-const list = (userId, { status } = {}) =>
-  prisma.application.findMany({
-    where: { userId, ...(status ? { status } : {}) },
-    orderBy: { createdAt: 'desc' },
-    include: includeCompany,
-  });
+// Sort keys are an allowlist — user input never reaches Prisma's orderBy.
+const ORDER_BY = {
+  position: (dir) => ({ position: dir }),
+  company: (dir) => ({ company: { name: dir } }),
+  status: (dir) => ({ status: dir }),
+  applicationDate: (dir) => ({ applicationDate: dir }),
+  createdAt: (dir) => ({ createdAt: dir }),
+};
+
+function buildWhere(userId, { status, companyId, search }) {
+  return {
+    userId,
+    ...(status ? { status } : {}),
+    ...(companyId ? { companyId } : {}),
+    ...(search
+      ? {
+        OR: [
+          { position: { contains: search, mode: 'insensitive' } },
+          { company: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }
+      : {}),
+  };
+}
+
+// Returns { items, total } always. Without `take` this is the unpaginated v1
+// path and deliberately skips COUNT(*) — v1 must not start paying for a count
+// it never reads.
+async function list(userId, {
+  status, companyId, search, sort = 'createdAt', dir = 'desc', skip, take,
+} = {}) {
+  const where = buildWhere(userId, { status, companyId, search });
+  const orderBy = (ORDER_BY[sort] || ORDER_BY.createdAt)(dir);
+
+  if (take === undefined) {
+    const items = await prisma.application.findMany({ where, orderBy, include: includeCompany });
+    return { items, total: items.length };
+  }
+
+  const [items, total] = await prisma.$transaction([
+    prisma.application.findMany({
+      where, orderBy, include: includeCompany, skip, take,
+    }),
+    prisma.application.count({ where }),
+  ]);
+  return { items, total };
+}
 
 async function getById(userId, id) {
   const app = await prisma.application.findFirst({

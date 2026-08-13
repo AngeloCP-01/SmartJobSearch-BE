@@ -3,8 +3,10 @@ const contactsService = require('../contacts/contacts.service');
 const documentsService = require('../documents/documents.service');
 
 async function list(req, res, next) {
-  try { res.json(await service.list(req.userId, { status: req.query.status })); }
-  catch (e) { next(e); }
+  try {
+    const { items } = await service.list(req.userId, { status: req.query.status });
+    res.json(items);
+  } catch (e) { next(e); }
 }
 async function getById(req, res, next) {
   try { res.json(await service.getById(req.userId, req.params.id)); }
