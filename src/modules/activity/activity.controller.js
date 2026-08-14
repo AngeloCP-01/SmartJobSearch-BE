@@ -1,4 +1,5 @@
 const service = require('./activity.service');
+const { toCursorEnvelope } = require('../../shared/pagination');
 
 async function list(req, res, next) {
   try {
@@ -10,4 +11,16 @@ async function list(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { list };
+// v2: cursor envelope. Query params have already been validated and coerced
+// by validate(schema, 'query').
+async function listPaged(req, res, next) {
+  try {
+    const { pageSize, before, applicationId } = req.query;
+    const { items, nextCursor } = await service.list(req.userId, {
+      applicationId, before, pageSize,
+    });
+    res.json(toCursorEnvelope({ items, pageSize, nextCursor }));
+  } catch (e) { next(e); }
+}
+
+module.exports = { list, listPaged };

@@ -20,8 +20,12 @@ function cursorFilter(before) {
   return { OR: [{ createdAt: { lt: dt } }, { createdAt: dt, id: { lt: beforeId } }] };
 }
 
-async function list(userId, { applicationId, limit, before } = {}) {
-  const take = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+// v1 passes `limit` and gets the historical clamp; v2 passes `pageSize`, which
+// the shared query schema has already validated against the allowlist.
+async function list(userId, {
+  applicationId, limit, before, pageSize,
+} = {}) {
+  const take = pageSize ?? Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
   const items = await prisma.activityLog.findMany({
     where: {
       userId,

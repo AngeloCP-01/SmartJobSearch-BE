@@ -33,7 +33,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/reminders', remindersRoutes);
 router.use('/documents', documentsRoutes);
-router.use('/activity', activityRoutes);
+router.use('/activity', activityRoutes.v1);
 router.use('/analysis', analysisRoutes.v1);
 router.use('/postings', postingsRoutes);
 router.use('/authored-documents', authoredDocumentsRoutes);

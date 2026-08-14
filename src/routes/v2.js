@@ -3,6 +3,7 @@ const applicationsRoutes = require('../modules/applications/applications.routes'
 const companiesRoutes = require('../modules/companies/companies.routes');
 const contactsRoutes = require('../modules/contacts/contacts.routes');
 const analysisRoutes = require('../modules/analysis/analysis.routes');
+const activityRoutes = require('../modules/activity/activity.routes');
 const v1Routes = require('./index');
 
 // v2 is a COMPLETE surface: everything v1 serves, with paginated list handlers
@@ -15,6 +16,7 @@ router.use('/applications', applicationsRoutes.v2);
 router.use('/companies', companiesRoutes.v2);
 router.use('/contacts', contactsRoutes.v2);
 router.use('/analysis', analysisRoutes.v2);
+router.use('/activity', activityRoutes.v2);
 
 router.use('/', v1Routes);
 
