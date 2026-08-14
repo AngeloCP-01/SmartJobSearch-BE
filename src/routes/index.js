@@ -26,7 +26,7 @@ router.get('/version', (req, res) => res.json({ version, commit, uptime: Math.ro
 router.use('/', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/companies', companiesRoutes.v1);
-router.use('/contacts', contactsRoutes);
+router.use('/contacts', contactsRoutes.v1);
 router.use('/applications', applicationsRoutes.v1);
 router.use('/interviews', interviewsRoutes);
 router.use('/dashboard', dashboardRoutes);

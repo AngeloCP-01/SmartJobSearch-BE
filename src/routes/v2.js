@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const applicationsRoutes = require('../modules/applications/applications.routes');
 const companiesRoutes = require('../modules/companies/companies.routes');
+const contactsRoutes = require('../modules/contacts/contacts.routes');
 const v1Routes = require('./index');
 
 // v2 is a COMPLETE surface: everything v1 serves, with paginated list handlers
@@ -11,6 +12,7 @@ const router = Router();
 
 router.use('/applications', applicationsRoutes.v2);
 router.use('/companies', companiesRoutes.v2);
+router.use('/contacts', contactsRoutes.v2);
 
 router.use('/', v1Routes);
 

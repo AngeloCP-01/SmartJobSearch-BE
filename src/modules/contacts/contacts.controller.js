@@ -1,8 +1,28 @@
 const service = require('./contacts.service');
+const { toSkipTake, toOffsetEnvelope } = require('../../shared/pagination');
 
 async function list(req, res, next) {
-  try { res.json(await service.list(req.userId, req.query.search)); }
-  catch (e) { next(e); }
+  try {
+    const { items } = await service.list(req.userId, { search: req.query.search });
+    res.json(items);
+  } catch (e) { next(e); }
+}
+
+// v2: same service call, wrapped in the offset envelope. Query params have
+// already been validated and coerced by validate(schema, 'query').
+async function listPaged(req, res, next) {
+  try {
+    const {
+      page, pageSize, sort, dir, search, companyId,
+    } = req.query;
+    const { skip, take } = toSkipTake({ page, pageSize });
+    const { items, total } = await service.list(req.userId, {
+      search, companyId, sort, dir, skip, take,
+    });
+    res.json(toOffsetEnvelope({
+      items, total, page, pageSize,
+    }));
+  } catch (e) { next(e); }
 }
 async function getById(req, res, next) {
   try { res.json(await service.getById(req.userId, req.params.id)); }
@@ -21,4 +41,6 @@ async function remove(req, res, next) {
   catch (e) { next(e); }
 }
 
-module.exports = { list, getById, create, update, remove };
+module.exports = {
+  list, listPaged, getById, create, update, remove,
+};
