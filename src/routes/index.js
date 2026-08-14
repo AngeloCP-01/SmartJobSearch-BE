@@ -34,7 +34,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/reminders', remindersRoutes);
 router.use('/documents', documentsRoutes);
 router.use('/activity', activityRoutes);
-router.use('/analysis', analysisRoutes);
+router.use('/analysis', analysisRoutes.v1);
 router.use('/postings', postingsRoutes);
 router.use('/authored-documents', authoredDocumentsRoutes);
 router.use('/images', imagesRoutes);
