@@ -25,7 +25,7 @@ router.get('/health', (req, res) => res.json({ status: 'ok', version }));
 router.get('/version', (req, res) => res.json({ version, commit, uptime: Math.round(process.uptime()) }));
 router.use('/', healthRoutes);
 router.use('/auth', authRoutes);
-router.use('/companies', companiesRoutes);
+router.use('/companies', companiesRoutes.v1);
 router.use('/contacts', contactsRoutes);
 router.use('/applications', applicationsRoutes.v1);
 router.use('/interviews', interviewsRoutes);
