@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { offsetShape, sortShape } = require('../../shared/pagination');
 
 const runAnalysisSchema = z.object({
   applicationId: z.string().uuid(),
@@ -52,7 +53,15 @@ const analysisReportSchema = z.object({
   })),
 });
 
+// documentName/position live in report JSON, not columns — deliberately absent
+// from the sort allowlist.
+const listAnalysisQuerySchema = z.object({
+  ...offsetShape,
+  ...sortShape(['createdAt', 'atsScore', 'matchScore'], 'createdAt'),
+});
+
 module.exports = {
+  listAnalysisQuerySchema,
   runAnalysisSchema, coverLetterSchema, tailorSchema,
   analysisReportSchema, tailoringResultSchema,
 };

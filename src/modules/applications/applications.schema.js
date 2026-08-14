@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { offsetShape, sortShape } = require('../../shared/pagination');
 
 const STATUSES = [
   'Draft', 'Applied', 'HR_Screening', 'Technical_Interview',
@@ -32,6 +33,22 @@ const updateApplicationSchema = z.object({
   .refine(salaryOrdered, salaryMessage);
 const statusSchema = z.object({ status: z.enum(STATUSES) });
 
+const APPLICATION_SORT_KEYS = ['position', 'company', 'status', 'applicationDate', 'createdAt'];
+
+const listApplicationsQuerySchema = z.object({
+  ...offsetShape,
+  ...sortShape(APPLICATION_SORT_KEYS, 'createdAt'),
+  status: z.enum(STATUSES).optional(),
+  companyId: z.string().uuid().optional(),
+  search: z.string().trim().min(1).optional(),
+});
+
 module.exports = {
-  STATUSES, WORK_MODES, createApplicationSchema, updateApplicationSchema, statusSchema,
+  STATUSES,
+  WORK_MODES,
+  createApplicationSchema,
+  updateApplicationSchema,
+  statusSchema,
+  APPLICATION_SORT_KEYS,
+  listApplicationsQuerySchema,
 };

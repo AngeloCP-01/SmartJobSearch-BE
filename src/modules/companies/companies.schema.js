@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { offsetShape, sortShape } = require('../../shared/pagination');
 
 const baseFields = {
   name: z.string().min(1).max(200),
@@ -15,4 +16,10 @@ const updateCompanySchema = z.object({
   name: baseFields.name.optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: 'At least one field required' });
 
-module.exports = { createCompanySchema, updateCompanySchema };
+const listCompaniesQuerySchema = z.object({
+  ...offsetShape,
+  ...sortShape(['name', 'createdAt'], 'createdAt'),
+  search: z.string().trim().min(1).optional(),
+});
+
+module.exports = { createCompanySchema, updateCompanySchema, listCompaniesQuerySchema };

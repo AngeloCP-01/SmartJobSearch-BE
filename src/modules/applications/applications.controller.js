@@ -1,10 +1,13 @@
 const service = require('./applications.service');
+const { toSkipTake, toOffsetEnvelope } = require('../../shared/pagination');
 const contactsService = require('../contacts/contacts.service');
 const documentsService = require('../documents/documents.service');
 
 async function list(req, res, next) {
-  try { res.json(await service.list(req.userId, { status: req.query.status })); }
-  catch (e) { next(e); }
+  try {
+    const { items } = await service.list(req.userId, { status: req.query.status });
+    res.json(items);
+  } catch (e) { next(e); }
 }
 async function getById(req, res, next) {
   try { res.json(await service.getById(req.userId, req.params.id)); }
@@ -49,7 +52,24 @@ async function unlinkDocument(req, res, next) {
   } catch (e) { next(e); }
 }
 
+// v2: same service call, wrapped in the offset envelope. Query params have
+// already been validated and coerced by validate(schema, 'query').
+async function listPaged(req, res, next) {
+  try {
+    const {
+      page, pageSize, sort, dir, status, companyId, search,
+    } = req.query;
+    const { skip, take } = toSkipTake({ page, pageSize });
+    const { items, total } = await service.list(req.userId, {
+      status, companyId, search, sort, dir, skip, take,
+    });
+    res.json(toOffsetEnvelope({
+      items, total, page, pageSize,
+    }));
+  } catch (e) { next(e); }
+}
+
 module.exports = {
-  list, getById, create, update, updateStatus, remove,
+  list, listPaged, getById, create, update, updateStatus, remove,
   linkContact, unlinkContact, linkDocument, unlinkDocument,
 };

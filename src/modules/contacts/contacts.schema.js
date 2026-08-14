@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { offsetShape, sortShape } = require('../../shared/pagination');
 
 const baseFields = {
   name: z.string().min(1).max(200),
@@ -19,4 +20,13 @@ const updateContactSchema = z.object({
 
 const linkContactSchema = z.object({ contactId: z.string().uuid() });
 
-module.exports = { createContactSchema, updateContactSchema, linkContactSchema };
+const listContactsQuerySchema = z.object({
+  ...offsetShape,
+  ...sortShape(['name', 'createdAt'], 'createdAt'),
+  search: z.string().trim().min(1).optional(),
+  companyId: z.string().uuid().optional(),
+});
+
+module.exports = {
+  createContactSchema, updateContactSchema, linkContactSchema, listContactsQuerySchema,
+};

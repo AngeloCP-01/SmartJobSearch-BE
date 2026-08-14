@@ -22,22 +22,47 @@ async function assertApplication(userId, applicationId) {
   return app;
 }
 
-const list = (userId, search) =>
-  prisma.contact.findMany({
-    where: {
-      userId,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { email: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-    include: includeCompany,
-  });
+// Sort keys are an allowlist — user input never reaches Prisma's orderBy.
+const ORDER_BY = {
+  name: (dir) => ({ name: dir }),
+  createdAt: (dir) => ({ createdAt: dir }),
+};
+
+const buildWhere = (userId, { search, companyId }) => ({
+  userId,
+  ...(companyId ? { companyId } : {}),
+  ...(search
+    ? {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ],
+    }
+    : {}),
+});
+
+// Returns { items, total } always. Without `take` this is the unpaginated v1
+// path and deliberately skips COUNT(*) — v1 must not pay for a count it never
+// reads. `id` breaks sort ties so paging is a total order.
+async function list(userId, {
+  search, companyId, sort = 'createdAt', dir = 'desc', skip, take,
+} = {}) {
+  const where = buildWhere(userId, { search, companyId });
+  const orderBy = [(ORDER_BY[sort] || ORDER_BY.createdAt)(dir), { id: dir }];
+
+  if (take === undefined) {
+    const items = await prisma.contact.findMany({ where, orderBy, include: includeCompany });
+    return { items, total: items.length };
+  }
+
+  const [items, total] = await prisma.$transaction([
+    prisma.contact.findMany({
+      where, orderBy, include: includeCompany, skip, take,
+    }),
+    prisma.contact.count({ where }),
+  ]);
+  return { items, total };
+}
 
 async function getById(userId, id) {
   const contact = await prisma.contact.findFirst({

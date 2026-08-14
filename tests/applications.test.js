@@ -182,3 +182,31 @@ test('deleting a document removes its application links (cascade)', async () => 
   const detail = await agent().get(`/api/applications/${appId}`).set(auth(token));
   expect(detail.body.documents).toEqual([]);
 });
+
+test('v1 list is still a bare array after the service refactor', async () => {
+  const { token } = await registerAndLogin();
+  await agent().post('/api/applications').set(auth(token)).send({ position: 'A' });
+  await agent().post('/api/applications').set(auth(token)).send({ position: 'B' });
+
+  const res = await agent().get('/api/applications').set(auth(token));
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+  expect(res.body).toHaveLength(2);
+  expect(res.body[0]).not.toHaveProperty('items');
+});
+
+test('service.list returns {items,total} and counts the FILTERED set', async () => {
+  const service = require('../src/modules/applications/applications.service');
+  const { token, user } = await registerAndLogin();
+  await agent().post('/api/applications').set(auth(token)).send({ position: 'A' });
+  await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'B', status: 'Applied' });
+
+  const all = await service.list(user.id, {});
+  expect(all.total).toBe(2);
+  expect(all.items).toHaveLength(2);
+
+  const filtered = await service.list(user.id, { status: 'Applied', skip: 0, take: 10 });
+  expect(filtered.total).toBe(1);
+  expect(filtered.items).toHaveLength(1);
+});

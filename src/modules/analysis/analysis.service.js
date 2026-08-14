@@ -117,16 +117,46 @@ async function run(userId, { applicationId, documentId, useAi }) {
   });
 }
 
-async function list(userId) {
-  const rows = await prisma.resumeAnalysis.findMany({
-    where: { userId }, orderBy: { createdAt: 'desc' }, select: rowSelect,
-  });
-  return rows.map((r) => ({
-    id: r.id, atsScore: r.atsScore, matchScore: r.matchScore,
-    documentName: r.report?.meta?.documentName ?? null,
-    position: r.report?.meta?.position ?? null,
-    createdAt: r.createdAt,
-  }));
+// Sortable columns only. documentName/position are projected out of the report
+// JSON below, so ordering by them would need JSON path expressions and an
+// expression index to avoid scanning every stored report — deliberately not
+// offered rather than shipped as a sort that silently misses rows.
+const ANALYSIS_ORDER_BY = {
+  createdAt: (dir) => ({ createdAt: dir }),
+  atsScore: (dir) => ({ atsScore: dir }),
+  matchScore: (dir) => ({ matchScore: dir }),
+};
+
+const toRow = (r) => ({
+  id: r.id,
+  atsScore: r.atsScore,
+  matchScore: r.matchScore,
+  documentName: r.report?.meta?.documentName ?? null,
+  position: r.report?.meta?.position ?? null,
+  createdAt: r.createdAt,
+});
+
+// Returns { items, total } always. Without `take` this is the unpaginated v1
+// path and deliberately skips COUNT(*). `id` breaks sort ties so paging is a
+// total order.
+async function list(userId, {
+  sort = 'createdAt', dir = 'desc', skip, take,
+} = {}) {
+  const where = { userId };
+  const orderBy = [(ANALYSIS_ORDER_BY[sort] || ANALYSIS_ORDER_BY.createdAt)(dir), { id: dir }];
+
+  if (take === undefined) {
+    const rows = await prisma.resumeAnalysis.findMany({ where, orderBy, select: rowSelect });
+    return { items: rows.map(toRow), total: rows.length };
+  }
+
+  const [rows, total] = await prisma.$transaction([
+    prisma.resumeAnalysis.findMany({
+      where, orderBy, select: rowSelect, skip, take,
+    }),
+    prisma.resumeAnalysis.count({ where }),
+  ]);
+  return { items: rows.map(toRow), total };
 }
 
 async function getById(userId, id) {
