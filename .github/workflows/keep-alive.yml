@@ -1,16 +1,25 @@
 name: Keep API warm
 
-# Render's free web service spins down after ~15 min idle (a cold start then
-# takes ~30-60s). For a portfolio demo we ping the health endpoint every ~14 min
-# so a reviewer clicking the live link hits a warm server.
+# DISABLED 2026-08-20 — cron trigger removed, manual dispatch kept.
 #
-# Note: GitHub disables scheduled workflows after 60 days of repo inactivity, and
-# free-runner cron times can drift. For a rock-solid keep-alive, also/instead set
-# up a free monitor at cron-job.org or uptimerobot.com hitting the same URL.
+# Why: the free-tier Neon compute allowance was exhausted by the 20th of the
+# month. The direct cause was the UptimeRobot monitor polling /api/health/deep
+# (which runs SELECT 1) every 5 min, so Neon's 5-min scale-to-zero timer never
+# expired. This workflow hits the shallow /api/health, which touches no DB — but
+# it keeps the Render dyno (and its Prisma pool) up 24/7 for no benefit now that
+# we're deliberately letting the stack idle. Cold starts on a reviewer's first
+# click are the accepted trade.
+#
+# Original rationale: Render's free web service spins down after ~15 min idle
+# (cold start ~30-60s), so we pinged every ~14 min to keep a portfolio demo warm.
+#
+# To re-enable, restore the `schedule:` block below. Run it by hand any time via
+# the Actions tab (workflow_dispatch) to warm the API before a demo.
+#
+#  schedule:
+#    - cron: '*/14 * * * *'
 
 on:
-  schedule:
-    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
