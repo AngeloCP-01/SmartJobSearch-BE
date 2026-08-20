@@ -64,3 +64,53 @@ test('ai result is cached across calls (only one live ping)', async () => {
   const second = await deepHealth();
   expect(second.body.checks.ai.cached).toBe(true);
 });
+
+// --- DB probe throttling (2026-08-20) ---
+// Each live `SELECT 1` wakes Neon and restarts its 5-min scale-to-zero timer,
+// so an uncached probe on a 5-min monitor pins compute on 24/7. These pin the
+// throttle that makes the endpoint safe to poll.
+
+test('db result is cached across calls (only one live query)', async () => {
+  const { deepHealth } = loadFresh();
+  await deepHealth();
+  await deepHealth();
+  await deepHealth();
+  expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+});
+
+test('a cached db result is marked cached', async () => {
+  const { deepHealth } = loadFresh();
+  const first = await deepHealth();
+  const second = await deepHealth();
+  expect(first.body.checks.db.cached).toBe(false);
+  expect(second.body.checks.db.cached).toBe(true);
+});
+
+test('a failed db check is not cached, so recovery is visible next call', async () => {
+  prisma.$queryRaw.mockRejectedValue(new Error('conn refused'));
+  const { deepHealth } = loadFresh();
+  const down = await deepHealth();
+  expect(down.httpStatus).toBe(503);
+
+  prisma.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
+  const recovered = await deepHealth();
+  expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+  expect(recovered.httpStatus).toBe(200);
+  expect(recovered.body.checks.db.ok).toBe(true);
+});
+
+test('fresh option bypasses the db cache', async () => {
+  const { deepHealth } = loadFresh();
+  await deepHealth();
+  const forced = await deepHealth({ fresh: true });
+  expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+  expect(forced.body.checks.db.cached).toBe(false);
+});
+
+test('fresh option bypasses the ai cache', async () => {
+  const { deepHealth } = loadFresh();
+  await deepHealth();
+  const forced = await deepHealth({ fresh: true });
+  expect(embed).toHaveBeenCalledTimes(2);
+  expect(forced.body.checks.ai.cached).toBe(false);
+});

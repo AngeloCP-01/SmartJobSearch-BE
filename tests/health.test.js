@@ -24,3 +24,17 @@ test('GET /api/health/deep returns 200 with db + storage + ai checks', async () 
   expect(res.body).toHaveProperty('version');
   expect(res.body).toHaveProperty('commit');
 });
+
+// The DB probe is throttled so a frequent uptime poll can't pin Neon awake;
+// ?fresh=1 is the escape hatch for on-demand diagnostics.
+test('GET /api/health/deep serves a cached db probe on repeat calls', async () => {
+  await agent().get('/api/health/deep');
+  const res = await agent().get('/api/health/deep');
+  expect(res.body.checks.db.cached).toBe(true);
+});
+
+test('GET /api/health/deep?fresh=1 forces a live db probe', async () => {
+  await agent().get('/api/health/deep');
+  const res = await agent().get('/api/health/deep?fresh=1');
+  expect(res.body.checks.db.cached).toBe(false);
+});
