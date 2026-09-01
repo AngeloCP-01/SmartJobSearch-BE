@@ -56,8 +56,14 @@ services:
       - key: NVIDIA_BASE_URL
         value: https://integrate.api.nvidia.com/v1
       # RAG embeddings model (NVIDIA NIM). Has a code default; declared for clarity.
+      # nv-embedqa-e5-v5 hit end of life 2026-08-25 (410 Gone). This replacement is
+      # natively 2048-dim and is truncated to 1024 via the `dimensions` parameter to
+      # match DocumentChunk.embedding -- see EMBEDDING_DIMENSIONS in
+      # src/modules/analysis/engine/embeddings.js. Do NOT swap this for a model that
+      # cannot emit 1024 dims without also migrating the column, the HNSW index and
+      # every stored vector.
       - key: EMBEDDING_MODEL
-        value: nvidia:nvidia/nv-embedqa-e5-v5
+        value: nvidia:nvidia/llama-nemotron-embed-vl-1b-v2
       # Public base URL of THIS API incl. /api — for absolute editor image URLs.
       - key: PUBLIC_API_URL
         sync: false

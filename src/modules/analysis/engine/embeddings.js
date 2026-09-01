@@ -1,7 +1,20 @@
 const { resolveProvider, OpenRouterError } = require('./openrouter');
 const { logger } = require('../../../shared/observability/logger');
 
-const DEFAULT_EMBEDDING_MODEL = 'nvidia:nvidia/nv-embedqa-e5-v5';
+// nvidia/nv-embedqa-e5-v5 reached end of life 2026-08-25 and now returns 410
+// Gone, which broke document indexing, Tailor Resume and Draft-in-Editor.
+// Replacement chosen 2026-09-01 from the models actually served to this account
+// (most publicly listed embedding models 404 as "not found for account").
+const DEFAULT_EMBEDDING_MODEL = 'nvidia:nvidia/llama-nemotron-embed-vl-1b-v2';
+
+// MUST equal the width of DocumentChunk.embedding -- `vector(1024)` in
+// prisma/schema.prisma. The replacement model is natively 2048-dim and is
+// Matryoshka-trained, so it truncates cleanly to 1024 on request; without this
+// parameter it returns 2048 floats and every insert fails. Changing this number
+// alone is not enough: the column, the HNSW index and every stored vector would
+// all have to be migrated and re-embedded together.
+const EMBEDDING_DIMENSIONS = 1024;
+
 const EMBED_TIMEOUT_MS = 30000;
 
 function embeddingSpec() { return process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL; }
@@ -36,7 +49,7 @@ async function embed(texts, inputType) {
         method: 'POST',
         signal: controller.signal,
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, input: texts, input_type: inputType }),
+        body: JSON.stringify({ model, input: texts, input_type: inputType, dimensions: EMBEDDING_DIMENSIONS }),
       });
     } catch (e) {
       if (e.name === 'AbortError') throw new OpenRouterError('embedding request timed out', 'timeout');
@@ -67,4 +80,4 @@ async function embed(texts, inputType) {
   }
 }
 
-module.exports = { embed, embeddingConfigured };
+module.exports = { embed, embeddingConfigured, EMBEDDING_DIMENSIONS };
