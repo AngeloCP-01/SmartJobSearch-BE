@@ -77,7 +77,7 @@ The repo includes **`render.yaml`** (a Blueprint), so the service + env keys are
      - After the first deploy with these keys set, **backfill RAG once** so existing documents become searchable (the index-on-upload hook only covers new uploads): authenticate and `POST /api/rag/reindex`.
    - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` → leave to **auto-generate** (declared `generateValue: true`).
    - `STORAGE_DRIVER` is already `s3`; `NODE_ENV` is already `production`.
-4. Deploy. Build runs `npm install && prisma generate`; start runs `prisma migrate deploy && node src/server.js`.
+4. Deploy. Build runs `npm install && prisma generate`; start runs `sh scripts/start.sh`, which applies migrations and then boots the server.
 5. When live, copy the API URL: `https://smartjobsearch-api.onrender.com`. Your API base is that **+ `/api`**.
 6. Verify: open `https://smartjobsearch-api.onrender.com/api/health` → `{"status":"ok"}`.
 
@@ -123,7 +123,8 @@ Open the Vercel URL and confirm:
 - **Neon free limits:** generous for a personal app; no expiry. If the project is paused for very long inactivity, the first query wakes it.
 - **CORS errors / login "works" but you get logged out:** almost always `CORS_ORIGIN` not matching the Vercel origin exactly, or `NODE_ENV` not `production` (so the cookie stays `SameSite=Lax` and isn't sent cross-site). Both are handled when the env is set correctly.
 - **Vite env is build-time:** changing `VITE_API_URL` requires a redeploy, not just a restart.
-- **Migrations:** handled automatically by `prisma migrate deploy` in the start command. New migrations ship on the next deploy.
+- **Migrations:** handled automatically by `prisma migrate deploy` inside `scripts/start.sh`. New migrations ship on the next deploy.
+- **⚠️ Boot is deliberately decoupled from the database (bit us 2026-08-20):** the start command used to be `prisma migrate deploy && node src/server.js`. When Neon suspended on quota, migrate exited non-zero, the `&&` short-circuited, and the server never started — so Render served 503 "no healthy upstream" for 11 days, including on `/api/health`, which touches no database. A failed Render deploy is never retried and does not notice when the DB returns. `scripts/start.sh` now logs a `[start] WARNING:` line and boots anyway. **Grep Render logs for `[start] WARNING`** — it means the schema may be stale even though the service is up.
 - **⚠️ Supabase Storage auto-pauses (bit us 2026-07-13):** the free Supabase project pauses after ~7 days of **inactivity on Supabase itself**. Since the DB is on Neon and Supabase is used *only* for file storage, normal app use (auth, board, dashboard — all Neon) never touches Supabase, so it pauses even while JobTrail is actively used. A paused project's S3 endpoint returns non-XML, so `@aws-sdk` throws `XML parse error: unexpected content` and every file-read feature (analysis, cover letter, Tailor Résumé, Draft-in-Editor, doc download) fails. **Fix:** resume the project in the Supabase dashboard. **Prevent:** move storage to **Cloudflare R2** (doesn't auto-pause; same S3 driver, just swap `S3_*` env — `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `S3_REGION=auto`), or add an external cron that touches the bucket every few days. (Read failures now surface as a friendly 503 `STORAGE_UNAVAILABLE` instead of a raw 500.)
 
 ## Alternative: one paid host (~$5/mo, no cold start)
