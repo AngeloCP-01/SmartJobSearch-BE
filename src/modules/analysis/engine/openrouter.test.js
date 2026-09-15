@@ -7,6 +7,10 @@ const okResponse = (payload) => ({ ok: true, json: async () => ({ choices: [{ me
 const errResponse = (status, body = 'err') => ({ ok: false, status, text: async () => body });
 const EMPTY_OK = okResponse({ skills: [], suggestions: [] });
 const modelOf = (opts) => JSON.parse(opts.body).model;
+const textResponse = (content, finishReason = 'stop', reasoning) => ({
+  ok: true,
+  json: async () => ({ choices: [{ finish_reason: finishReason, message: { content, reasoning } }] }),
+});
 
 beforeEach(() => {
   process.env.OPENROUTER_API_KEY = 'test-key';
@@ -18,6 +22,7 @@ afterEach(() => {
   delete process.env.OPENROUTER_RETRY_BASE_MS; delete process.env.OPENROUTER_ATTEMPTS;
   delete process.env.OPENROUTER_RETRY_AFTER_MAX_MS;
   delete process.env.OPENROUTER_BASE_URL;
+  delete process.env.OPENROUTER_REASONING_EFFORT;
   delete process.env.NVIDIA_BASE_URL; delete process.env.NVIDIA_OPENAI_KEY;
   jest.restoreAllMocks();
 });
@@ -316,6 +321,65 @@ test('freeform text generation carries the same telemetry as JSON completion', a
   expect(r.text).toBe('Dear hiring manager,');
   expect(r.usage).toEqual({ promptTokens: 300, completionTokens: 210, totalTokens: 510 });
   expect(r.fallbackDepth).toBe(0);
+});
+
+test.each([
+  "Here's a thinking process:\n\n1. **Analyze the Request:**\n - **Company:** Example Co\n\nDraft - Paragraph 1:\nI am writing to express interest in the position at",
+  '<think>Analyze the resume and draft the letter.</think>\nI am applying for the role.',
+  '<think>Analyze the resume and draft the letter.',
+  '## Analysis\nI need to write a cover letter using the resume.',
+  '   ',
+])('drafting notes or blank text fall through to a finished response: %s', async (badText) => {
+  process.env.OPENROUTER_MODEL = 'a/model:free,b/model:free';
+  global.fetch = jest.fn().mockResolvedValueOnce(textResponse(badText))
+    .mockResolvedValueOnce(textResponse('I am applying for the developer role. I would welcome a conversation.'));
+  const result = await generateTextWithFallback([{ role: 'user', content: 'Write a cover letter.' }]);
+  expect(result).toMatchObject({ text: 'I am applying for the developer role. I would welcome a conversation.', model: 'b/model:free', fallbackDepth: 1 });
+});
+
+test('truncated text falls through even when it looks like a letter', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free,b/model:free';
+  global.fetch = jest.fn().mockResolvedValueOnce(textResponse('I am applying for the role because', 'length'))
+    .mockResolvedValueOnce(textResponse('I would welcome a conversation about the role.'));
+  const result = await generateTextWithFallback([{ role: 'user', content: 'Write a cover letter.' }]);
+  expect(result).toMatchObject({ text: 'I would welcome a conversation about the role.', model: 'b/model:free' });
+});
+
+test('truncated JSON is rejected even if its partial result parses', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free,b/model:free';
+  global.fetch = jest.fn().mockResolvedValueOnce(textResponse('{"skills":[],"suggestions":[]}', 'length'))
+    .mockResolvedValueOnce(EMPTY_OK);
+  expect(await completeWithFallback('resume', 'job')).toMatchObject({ model: 'b/model:free' });
+});
+
+test('all models returning drafting notes fail without exposing the notes in the error', async () => {
+  global.fetch = jest.fn().mockResolvedValue(textResponse("Here's a thinking process: private resume details"));
+  const err = await generateTextWithFallback([{ role: 'user', content: 'Write.' }]).catch((e) => e);
+  expect(err).toMatchObject({ kind: 'parse' });
+  expect(err.message).not.toContain('private resume details');
+});
+
+test('OpenRouter requests exclude reasoning while preserving separate final content', async () => {
+  global.fetch = jest.fn().mockResolvedValue(textResponse('I build software for data analysis.', 'stop', 'private drafting notes'));
+  const result = await generateTextWithFallback([{ role: 'user', content: 'Write.' }]);
+  expect(result.text).toBe('I build software for data analysis.');
+  expect(JSON.parse(global.fetch.mock.calls[0][1].body).reasoning).toEqual({ exclude: true });
+});
+
+test('OpenRouter reasoning options are not sent to the direct NVIDIA API', async () => {
+  process.env.OPENROUTER_REASONING_EFFORT = 'none';
+  process.env.NVIDIA_OPENAI_KEY = 'test-key';
+  process.env.OPENROUTER_MODEL = 'nvidia:test/model';
+  global.fetch = jest.fn().mockResolvedValue(textResponse('I build software.'));
+  await generateTextWithFallback([{ role: 'user', content: 'Write.' }]);
+  expect(JSON.parse(global.fetch.mock.calls[0][1].body)).not.toHaveProperty('reasoning');
+});
+
+test('configured reasoning effort reaches OpenRouter so thinking can be disabled within the output budget', async () => {
+  process.env.OPENROUTER_REASONING_EFFORT = 'none';
+  global.fetch = jest.fn().mockResolvedValue(textResponse('I would welcome a conversation about the role.'));
+  await generateTextWithFallback([{ role: 'user', content: 'Write.' }]);
+  expect(JSON.parse(global.fetch.mock.calls[0][1].body).reasoning).toEqual({ effort: 'none', exclude: true });
 });
 
 // ---- Multi-provider routing (Qwen-on-NVIDIA primary, OpenRouter fallback) ----

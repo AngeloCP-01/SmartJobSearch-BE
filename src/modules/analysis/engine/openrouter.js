@@ -20,9 +20,9 @@ const SYSTEM = [
   'Write a few concrete, honest suggestions for the most important missing skills (no keyword stuffing).',
 ].join(' ');
 
-const DEFAULT_MODEL = 'openai/gpt-oss-120b:free';
-// The free primary (NVIDIA) has spiky latency (observed 80-156s under load).
-// 60s gives it a fair shot on a normal/moderately-slow response, then abandons
+const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+// Free endpoints can have spiky latency under load.
+// 60s gives a model a fair shot on a normal/moderately-slow response, then abandons
 // it for the next model rather than hanging. A timed-out model is NOT retried on
 // itself (see isRetryableSameModel) — it fell through to the next model instead,
 // so the chain doesn't burn attempts x timeout on one slow endpoint. Env-tunable.
@@ -33,7 +33,7 @@ const TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 60000);
 //   'timeout' — request aborted after TIMEOUT_MS
 //   'http'    — non-2xx response from OpenRouter (also carries `.status`)
 //   'network' — fetch failed before a response (DNS, connection reset, …)
-//   'parse'   — response wasn't valid JSON or didn't match the expected schema
+//   'parse'   — unusable, unfinished, or schema-invalid output
 class OpenRouterError extends Error {
   constructor(message, kind, extra = {}) {
     super(message);
@@ -143,6 +143,15 @@ async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxT
     try {
       const body = { model, temperature, max_tokens: maxTokens, messages };
       if (responseFormat) body.response_format = responseFormat;
+      // Ask the gateway for final content only. This is OpenRouter-specific;
+      // direct NVIDIA requests keep their existing API contract.
+      if (provider === 'openrouter') {
+        body.reasoning = { exclude: true };
+        // Excluding traces alone does not stop reasoning consuming max_tokens.
+        // Set "none" only with a model chain that supports disabling reasoning.
+        const effort = process.env.OPENROUTER_REASONING_EFFORT?.trim();
+        if (effort) body.reasoning.effort = effort;
+      }
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
@@ -168,8 +177,14 @@ async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxT
       throw new OpenRouterError(`OpenRouter request failed: ${e.message} (model ${model})`, 'network', { model, cause: e });
     }
 
-    const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!content) throw new OpenRouterError(`OpenRouter returned no content (model ${model})`, 'parse', { model });
+    const choice = data?.choices?.[0];
+    // A provider can return HTTP 200 with an unfinished answer, including
+    // syntactically valid but incomplete JSON. Let the fallback chain try again.
+    if (choice?.finish_reason && choice.finish_reason !== 'stop') {
+      throw new OpenRouterError(`OpenRouter returned an unfinished answer (model ${model})`, 'parse', { model, finishReason: choice.finish_reason });
+    }
+    const content = choice?.message?.content;
+    if (typeof content !== 'string' || !content.trim()) throw new OpenRouterError(`OpenRouter returned no content (model ${model})`, 'parse', { model });
     return { content, provider, usage: normalizeUsage(data.usage), latencyMs: Date.now() - startedAt };
   } finally {
     clearTimeout(timer);
@@ -195,11 +210,18 @@ async function complete(resumeText, jobDescription, modelArg) {
   }
 }
 
-// Freeform text generation (e.g. cover letters): raw assistant text, no JSON
-// parsing. A little warmth (temperature) since this is prose, not extraction.
+// Catch explicit drafting traces in freeform answers. Do not strip them and
+// return a potentially unfinished draft; rejecting here triggers model fallback.
+// This is a guard for recognizable leakage, not a semantic quality guarantee.
+const DRAFTING_TRACE = /<\/?(?:think|analysis|reasoning)\b|\b(?:here['’]s|here is)\s+(?:a|the|my)\s+thinking process\b|^\s*(?:#{1,6}\s+|\*\*)(?:analysis|thinking|reasoning|analyze the request)\b/im;
+
+// A little warmth (temperature) since this is prose, not extraction.
 async function generateText(messages, modelArg) {
   const model = modelArg || parseModels()[0];
   const { content, ...telemetry } = await chat(model, { messages, temperature: 0.7, maxTokens: 1200 });
+  if (DRAFTING_TRACE.test(content)) {
+    throw new OpenRouterError(`OpenRouter returned drafting notes instead of final text (model ${model})`, 'parse', { model });
+  }
   return { text: content.trim(), model, ...telemetry };
 }
 

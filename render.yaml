@@ -42,15 +42,16 @@ services:
       # AI layer. OPENROUTER_API_KEY gates the AI features on/off (the Tailor
       # and cover-letter endpoints 503 without it) — leave unset to keep résumé
       # analysis deterministic. The model chain routes to NVIDIA first, so
-      # NVIDIA_OPENAI_KEY is REQUIRED for both the fast AI chain AND RAG
+      # NVIDIA_OPENAI_KEY is REQUIRED for RAG
       # embeddings (embeddingConfigured() === Boolean(NVIDIA_OPENAI_KEY); without
       # it, Tailor Résumé / Draft-in-Editor and doc indexing do not work).
       - key: OPENROUTER_API_KEY
         sync: false
-      # Stabilized all-NVIDIA chain (2026-07-13): reliable, fast (~3-6s), no
-      # timeout-prone free-tier fallbacks. Set this exact value in the dashboard.
+      # Explicit OpenRouter free endpoints. Shared capacity can still cause 429s.
       - key: OPENROUTER_MODEL
-        value: nvidia:openai/gpt-oss-120b,nvidia:meta/llama-3.1-70b-instruct,nvidia:meta/llama-3.1-8b-instruct
+        value: nex-agi/nex-n2.5-pro:free,nex-agi/nex-n2.5-mini:free,google/gemma-4-31b-it:free
+      - key: OPENROUTER_REASONING_EFFORT
+        value: none
       - key: NVIDIA_OPENAI_KEY
         sync: false
       - key: NVIDIA_BASE_URL
