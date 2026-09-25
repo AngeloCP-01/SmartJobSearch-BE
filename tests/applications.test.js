@@ -53,6 +53,16 @@ test('PATCH with companyId:null unlinks the company', async () => {
   expect(res.body.company).toBeNull();
 });
 
+test('generic PATCH to status Applied auto-fills applicationDate when unset', async () => {
+  const { token } = await registerAndLogin();
+  const created = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'Backend Engineer' });
+  const res = await agent().patch(`/api/applications/${created.body.id}`).set(auth(token))
+    .send({ status: 'Applied' });
+  expect(res.status).toBe(200);
+  expect(res.body.applicationDate).not.toBeNull();
+});
+
 test('position is required (400)', async () => {
   const { token } = await registerAndLogin();
   const res = await agent().post('/api/applications').set(auth(token)).send({});
@@ -78,6 +88,14 @@ test('accepts a long source URL (over 200 chars)', async () => {
   expect(res.body.source).toBe(longSource);
 });
 
+test('creates and returns an application with askingSalary', async () => {
+  const { token } = await registerAndLogin();
+  const res = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'X', askingSalary: 120000 });
+  expect(res.status).toBe(201);
+  expect(res.body.askingSalary).toBe(120000);
+});
+
 test('rejects salaryMin greater than salaryMax (400)', async () => {
   const { token } = await registerAndLogin();
   const res = await agent().post('/api/applications').set(auth(token))
@@ -93,6 +111,28 @@ test('PATCH /:id/status moves the application (Kanban)', async () => {
     .set(auth(token)).send({ status: 'Applied' });
   expect(res.status).toBe(200);
   expect(res.body.status).toBe('Applied');
+});
+
+test('PATCH /:id/status to Applied auto-fills applicationDate when unset', async () => {
+  const { token } = await registerAndLogin();
+  const created = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'Backend Engineer' });
+  expect(created.body.applicationDate).toBeNull();
+  const res = await agent().patch(`/api/applications/${created.body.id}/status`)
+    .set(auth(token)).send({ status: 'Applied' });
+  expect(res.status).toBe(200);
+  expect(res.body.applicationDate).not.toBeNull();
+});
+
+test('PATCH /:id/status to Applied does not overwrite an existing applicationDate', async () => {
+  const { token } = await registerAndLogin();
+  const existingDate = '2026-01-01T00:00:00.000Z';
+  const created = await agent().post('/api/applications').set(auth(token))
+    .send({ position: 'Backend Engineer', applicationDate: existingDate });
+  const res = await agent().patch(`/api/applications/${created.body.id}/status`)
+    .set(auth(token)).send({ status: 'Applied' });
+  expect(res.status).toBe(200);
+  expect(res.body.applicationDate).toBe(existingDate);
 });
 
 test('PATCH /:id/status rejects an invalid status (400)', async () => {

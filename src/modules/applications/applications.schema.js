@@ -14,6 +14,7 @@ const baseFields = {
   applicationDate: z.coerce.date().optional(),
   salaryMin: z.number().int().nonnegative().optional(),
   salaryMax: z.number().int().nonnegative().optional(),
+  askingSalary: z.number().int().nonnegative().optional(),
   source: z.string().max(2000).optional(),
   workMode: z.enum(WORK_MODES).nullable().optional(),
   jobDescription: z.string().max(20000).optional(),

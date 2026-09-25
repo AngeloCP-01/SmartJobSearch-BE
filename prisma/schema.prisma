@@ -118,6 +118,7 @@ model Application {
   applicationDate DateTime?
   salaryMin       Int?
   salaryMax       Int?
+  askingSalary    Int?
   source          String?
   workMode        WorkMode?
   jobDescription  String?

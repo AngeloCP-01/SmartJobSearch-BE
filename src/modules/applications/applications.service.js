@@ -99,15 +99,26 @@ async function create(userId, data) {
   return app;
 }
 
+// Applied is when a candidate submits an application, so applicationDate
+// should reflect that moment — auto-filled once, never overwritten.
+function withAppliedDate(existing, data) {
+  if (data.status === 'Applied' && !existing.applicationDate) {
+    return { ...data, applicationDate: new Date() };
+  }
+  return data;
+}
+
 async function update(userId, id, data) {
-  await getById(userId, id);
+  const existing = await getById(userId, id);
   await assertCompany(userId, data.companyId);
-  return prisma.application.update({ where: { id }, data, include: includeCompany });
+  return prisma.application.update({ where: { id }, data: withAppliedDate(existing, data), include: includeCompany });
 }
 
 async function updateStatus(userId, id, status) {
   const existing = await getById(userId, id);
-  const app = await prisma.application.update({ where: { id }, data: { status }, include: includeCompany });
+  const app = await prisma.application.update({
+    where: { id }, data: withAppliedDate(existing, { status }), include: includeCompany,
+  });
   if (existing.status !== status) {
     await activity.record(userId, 'ApplicationStatusChanged', {
       applicationId: id,
