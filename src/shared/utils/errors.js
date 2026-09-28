@@ -1,6 +1,8 @@
 class AppError extends Error {
-  constructor(message, status = 500, code = 'INTERNAL') {
-    super(message);
+  // `options.cause` keeps the internal error behind a user-facing message so
+  // logs/Sentry see the real reason (e.g. which AI models failed and why).
+  constructor(message, status = 500, code = 'INTERNAL', options) {
+    super(message, options);
     this.status = status;
     this.code = code;
   }

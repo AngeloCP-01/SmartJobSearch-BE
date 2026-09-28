@@ -243,6 +243,36 @@ function isFatal(err) {
   return err.kind === 'config' || (err.kind === 'http' && (err.status === 401 || err.status === 403));
 }
 
+// A 404/410 from the chat endpoint means the model id itself is gone (retired,
+// renamed, or no free endpoint left) — retrying later will never fix it.
+function hintFor(err) {
+  if (err.kind === 'http' && (err.status === 404 || err.status === 410)) return 'model not found/retired — update OPENROUTER_MODEL';
+  if (err.kind === 'http' && (err.status === 401 || err.status === 403)) return 'API key rejected — check provider key';
+  if (err.kind === 'http' && err.status === 402) return 'out of credits';
+  if (err.kind === 'config') return 'missing configuration';
+  return undefined;
+}
+
+function failureOf(model, err, sweep) {
+  const f = { model, kind: err.kind || 'unknown', message: err.message, sweep };
+  if (err.status != null) f.status = err.status;
+  const hint = hintFor(err);
+  if (hint) f.hint = hint;
+  return f;
+}
+
+// Rethrow the last error (callers/tests key off its kind/status) but make it
+// carry EVERY model's failure. Without this a chain of 404 (model retired)
+// then 429 surfaces only the 429 and reads as "busy, try later" forever.
+function withFailures(err, failures) {
+  const summary = failures
+    .map((f) => `${f.model} → ${f.status ?? f.kind}${f.hint ? ` (${f.hint})` : ''}`)
+    .join('; ');
+  err.failures = failures;
+  err.message = `All AI models failed [${summary}] — last: ${err.message}`;
+  return err;
+}
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Try each configured model in order; retry transient failures on a model with
@@ -256,7 +286,9 @@ async function withModelFallback(attempt) {
   const baseMs = Number(process.env.OPENROUTER_RETRY_BASE_MS ?? 400);
   const retryAfterCapMs = Number(process.env.OPENROUTER_RETRY_AFTER_MAX_MS ?? 10000);
 
-  const state = { lastErr: undefined, minRetryAfterMs: Infinity, sweepN: 1 };
+  const state = {
+    lastErr: undefined, minRetryAfterMs: Infinity, sweepN: 1, failures: [],
+  };
 
   // One pass over every model (with same-model retries for transient glitches).
   // Returns the result, or undefined if the whole chain failed without a fatal.
@@ -276,7 +308,10 @@ async function withModelFallback(attempt) {
           return { ...res, fallbackDepth: depth, sweep: state.sweepN };
         } catch (err) {
           state.lastErr = err;
-          if (isFatal(err)) throw err;
+          if (isFatal(err)) {
+            state.failures.push(failureOf(model, err, state.sweepN));
+            throw withFailures(err, state.failures);
+          }
           if (err.kind === 'http' && err.status === 429 && Number.isFinite(err.retryAfterMs)) {
             state.minRetryAfterMs = Math.min(state.minRetryAfterMs, err.retryAfterMs);
           }
@@ -288,6 +323,7 @@ async function withModelFallback(attempt) {
           // silently falls through its primary (e.g. NVIDIA) to a flaky free model
           // is indistinguishable from the free model simply being slow.
           logger.warn({ err, kind: err.kind, model }, '[ai] model failed');
+          state.failures.push(failureOf(model, err, state.sweepN));
           break; // rate-limited (429), non-transient (parse), or out of retries → next model
         }
       }
@@ -306,7 +342,7 @@ async function withModelFallback(attempt) {
     const second = await sweep();
     if (second) return second;
   }
-  throw state.lastErr;
+  throw withFailures(state.lastErr, state.failures);
 }
 
 function completeWithFallback(resumeText, jobDescription) {

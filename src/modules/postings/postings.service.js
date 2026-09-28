@@ -92,7 +92,7 @@ async function parsePosting(userId, { content }) {
     ));
   } catch (err) {
     logger.warn({ err, kind: err.kind || 'unknown' }, '[postings] AI parse failed');
-    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE', { cause: err });
   }
 
   return {

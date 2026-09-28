@@ -201,7 +201,7 @@ async function generateCoverLetter(userId, { applicationId, documentId }) {
     }));
   } catch (err) {
     logger.warn({ err, kind: err.kind || 'unknown' }, '[cover-letter] AI generation failed');
-    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE', { cause: err });
   }
 
   return {
@@ -237,7 +237,7 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
     chunks = await retrieve(userId, jd, { topK: 8 });
   } catch (err) {
     logger.warn({ err, kind: err.kind || 'unknown' }, '[tailor] retrieval failed');
-    throw new AppError('Could not build tailoring suggestions right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+    throw new AppError('Could not build tailoring suggestions right now — please try again in a moment.', 503, 'AI_UNAVAILABLE', { cause: err });
   }
   const docs = await prisma.document.findMany({ where: { userId }, select: { id: true, name: true } });
   const nameById = new Map(docs.map((d) => [d.id, d.name]));
@@ -261,7 +261,7 @@ async function generateTailoringSuggestions(userId, { applicationId, documentId 
     );
   } catch (err) {
     logger.warn({ err, kind: err.kind || 'unknown' }, '[tailor] AI generation failed');
-    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE');
+    throw new AppError('The AI service is busy right now — please try again in a moment.', 503, 'AI_UNAVAILABLE', { cause: err });
   }
 
   const rank = { high: 0, medium: 1, low: 2 };

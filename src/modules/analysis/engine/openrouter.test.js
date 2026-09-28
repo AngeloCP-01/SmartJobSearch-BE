@@ -217,6 +217,23 @@ test('throws the last error when every model is exhausted', async () => {
   expect(global.fetch).toHaveBeenCalledTimes(4); // 2 models × 2 attempts
 });
 
+test('exhausted chain reports every model failure, not just the last (404 retired model)', async () => {
+  process.env.OPENROUTER_MODEL = 'a/model:free, b/model:free, c/model:free';
+  process.env.OPENROUTER_RETRY_AFTER_MAX_MS = '0';
+  global.fetch = jest.fn().mockImplementation((url, opts) => {
+    const m = modelOf(opts);
+    return Promise.resolve(m === 'c/model:free' ? rateLimited(60) : errResponse(404, 'No endpoints found'));
+  });
+  const err = await completeWithFallback('r', 'j').catch((e) => e);
+  expect(err).toMatchObject({ kind: 'http', status: 429 });
+  expect(err.failures).toEqual([
+    expect.objectContaining({ model: 'a/model:free', status: 404, hint: expect.stringMatching(/retired/) }),
+    expect.objectContaining({ model: 'b/model:free', status: 404 }),
+    expect.objectContaining({ model: 'c/model:free', status: 429 }),
+  ]);
+  expect(err.message).toMatch(/a\/model:free → 404 \(model not found/);
+});
+
 // ---- Call telemetry (tokens / latency / which model actually served it) ----
 //
 // Cost, latency and fallback depth are the questions you cannot answer after the

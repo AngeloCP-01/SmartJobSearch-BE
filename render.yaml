@@ -47,9 +47,9 @@ services:
       # it, Tailor Résumé / Draft-in-Editor and doc indexing do not work).
       - key: OPENROUTER_API_KEY
         sync: false
-      # Explicit OpenRouter free endpoints. Shared capacity can still cause 429s.
+      # Mixed chain: OpenRouter free + direct NVIDIA so one provider outage/429 is not fatal. Re-probed 2026-09-28.
       - key: OPENROUTER_MODEL
-        value: nex-agi/nex-n2.5-pro:free,nex-agi/nex-n2.5-mini:free,google/gemma-4-31b-it:free
+        value: nvidia/nemotron-3-super-120b-a12b:free,nvidia:nvidia/nemotron-3-super-120b-a12b,nvidia/nemotron-3-ultra-550b-a55b:free,nvidia:openai/gpt-oss-20b
       - key: OPENROUTER_REASONING_EFFORT
         value: none
       - key: NVIDIA_OPENAI_KEY

@@ -57,11 +57,14 @@ function initSentry() {
 
 function captureError(err, context) {
   if (!enabled) return;
-  if (context && context.requestId) {
-    Sentry.captureException(err, { tags: { request_id: context.requestId } });
-  } else {
-    Sentry.captureException(err);
-  }
+  // AI chain failures ride on err.cause (see openrouter withFailures): attach
+  // the per-model list so the Sentry issue shows WHY, not just "busy".
+  const failures = err && err.cause && err.cause.failures;
+  const hint = {};
+  if (context && context.requestId) hint.tags = { request_id: context.requestId };
+  if (failures) hint.extra = { aiFailures: failures };
+  if (Object.keys(hint).length) Sentry.captureException(err, hint);
+  else Sentry.captureException(err);
 }
 
 module.exports = { initSentry, captureError, scrub, scrubLog };
