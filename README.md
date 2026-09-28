@@ -207,3 +207,19 @@ All routes are under `/api`; authenticated requests send `Authorization: Bearer 
 ## Deployment
 
 Full free-tier walkthrough (Neon + Supabase + Render + Vercel), with the cross-origin cookie/CORS gotchas, in **[`DEPLOY.md`](./DEPLOY.md)**.
+
+
+### Paginated applications board (v2)
+
+`GET /api/v2/applications/board?pageSize=10&search=engineer&companyId=<uuid>`
+returns `{ columns: { [status]: { items, page, pageSize, total, totalPages } } }`.
+It requires authentication and includes only the caller's applications. Every
+status is present, including empty columns. Each column starts at page 1;
+`pageSize` defaults to 10 and accepts 10, 25, 50, or 100. Search and company
+filters are optional and apply to every column.
+
+Rows use `applicationDate desc, id desc`, matching subsequent requests to
+`GET /api/v2/applications?status=Applied&page=2&pageSize=10&sort=applicationDate&dir=desc`.
+The board endpoint combines the existing bounded per-status database queries
+into one HTTP response; it does not fetch all application records.
+Deploy this backend endpoint before the frontend that uses it.

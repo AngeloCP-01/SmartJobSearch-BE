@@ -1,6 +1,8 @@
 const prisma = require('../../shared/database/prisma');
 const { NotFoundError } = require('../../shared/utils/errors');
 const activity = require('../activity/activity.service');
+const { STATUSES } = require('./applications.schema');
+const { toOffsetEnvelope } = require('../../shared/pagination');
 
 const includeCompany = { company: { select: { id: true, name: true } } };
 
@@ -64,6 +66,17 @@ async function list(userId, {
     prisma.application.count({ where }),
   ]);
   return { items, total };
+}
+
+async function listBoard(userId, { pageSize, companyId, search }) {
+  const columns = await Promise.all(STATUSES.map(async (status) => {
+    const { items, total } = await list(userId, {
+      status, companyId, search, sort: 'applicationDate', dir: 'desc',
+      skip: 0, take: pageSize,
+    });
+    return [status, toOffsetEnvelope({ items, total, page: 1, pageSize })];
+  }));
+  return { columns: Object.fromEntries(columns) };
 }
 
 async function getById(userId, id) {
@@ -134,4 +147,4 @@ async function remove(userId, id) {
   await activity.record(userId, 'ApplicationDeleted', { applicationId: null, metadata: { position: existing.position } });
 }
 
-module.exports = { list, getById, create, update, updateStatus, remove };
+module.exports = { list, listBoard, getById, create, update, updateStatus, remove };

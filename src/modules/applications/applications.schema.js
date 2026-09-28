@@ -44,6 +44,12 @@ const listApplicationsQuerySchema = z.object({
   search: z.string().trim().min(1).optional(),
 });
 
+// The board always starts at page 1 for every status. Its ordering must match
+// the list requests used to load subsequent pages.
+const boardApplicationsQuerySchema = listApplicationsQuerySchema
+  .pick({ pageSize: true, companyId: true, search: true })
+  .extend({ pageSize: offsetShape.pageSize.default(10) });
+
 module.exports = {
   STATUSES,
   WORK_MODES,
@@ -52,4 +58,5 @@ module.exports = {
   statusSchema,
   APPLICATION_SORT_KEYS,
   listApplicationsQuerySchema,
+  boardApplicationsQuerySchema,
 };

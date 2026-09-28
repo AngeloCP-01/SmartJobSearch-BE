@@ -69,7 +69,12 @@ async function listPaged(req, res, next) {
   } catch (e) { next(e); }
 }
 
+async function board(req, res, next) {
+  try { res.json(await service.listBoard(req.userId, req.query)); }
+  catch (e) { next(e); }
+}
+
 module.exports = {
-  list, listPaged, getById, create, update, updateStatus, remove,
+  list, listPaged, board, getById, create, update, updateStatus, remove,
   linkContact, unlinkContact, linkDocument, unlinkDocument,
 };
