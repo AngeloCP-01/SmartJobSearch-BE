@@ -423,7 +423,7 @@ function tailorMessages({ jd, resumeText, evidenceBlock }) {
   ];
 }
 
-export default {
+module.exports = {
   COVER_LETTER_SYSTEM,
   TAILOR_SYSTEM,
   coverLetterMessages,
