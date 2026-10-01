@@ -12,6 +12,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const prisma = require('../src/shared/database/prisma');
 const storage = require('../src/shared/storage');
+const { RESUME_FULL_STACK, RESUME_BACKEND, SAMPLE_COVER_LETTER, JOB_DESCRIPTIONS } = require('./demoContent');
 const { hashPassword } = require('../src/shared/utils/password');
 
 const DEMO_EMAIL = 'demo@smartjobsearch.app';
@@ -23,27 +24,41 @@ const now = Date.now();
 const daysAgo = (n) => new Date(now - n * DAY);
 const daysFromNow = (n) => new Date(now + n * DAY);
 
-// Build a tiny but valid single-page PDF (correct xref offsets) so seeded
-// résumé/cover-letter documents download as real, openable files.
+// Build a small but valid single-page PDF (correct xref offsets) so seeded
+// résumé/cover-letter documents download as real, openable files and their text
+// extracts cleanly for the AI features. A line is a string (body text) or
+// { t, h } with h = 'name' | 'section' | 'role' for headings (see demoContent.js).
+const PDF_STYLE = {
+  name: { font: 'F2', size: 18, before: 0 },
+  section: { font: 'F2', size: 11.5, before: 10 },
+  role: { font: 'F2', size: 10, before: 5 },
+  body: { font: 'F1', size: 9.5, before: 0 },
+};
 function makePdf(lines) {
   const esc = (s) => s.replace(/[()\\]/g, '\\$&');
-  const text = lines
-    .map((l, i) => `BT /F1 ${i === 0 ? 18 : 12} Tf 72 ${740 - i * 22} Td (${esc(l)}) Tj ET`)
-    .join('\n');
+  let y = 752;
+  const text = lines.map((line) => {
+    const { t, h } = typeof line === 'string' ? { t: line, h: 'body' } : line;
+    const style = PDF_STYLE[h];
+    y -= style.before + style.size * 1.4;
+    return `BT /${style.font} ${style.size} Tf 54 ${y.toFixed(1)} Td (${esc(t)}) Tj ET`;
+  }).join('\n');
+  const font = (base) => `<< /Type /Font /Subtype /Type1 /BaseFont /${base} /Encoding /WinAnsiEncoding >>`;
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${Buffer.byteLength(text)} >>\nstream\n${text}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>',
+    `<< /Length ${Buffer.byteLength(text, 'latin1')} >>\nstream\n${text}\nendstream`,
+    font('Helvetica'),
+    font('Helvetica-Bold'),
   ];
   let pdf = '%PDF-1.4\n';
   const offsets = [];
   objs.forEach((body, i) => {
-    offsets.push(Buffer.byteLength(pdf));
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
     pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
   });
-  const xrefStart = Buffer.byteLength(pdf);
+  const xrefStart = Buffer.byteLength(pdf, 'latin1');
   pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
   offsets.forEach((off) => { pdf += `${String(off).padStart(10, '0')} 00000 n \n`; });
   pdf += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
@@ -88,7 +103,6 @@ async function main() {
   }
 
   // --- Applications across the whole pipeline ---
-  const jd = (role) => `We're hiring a ${role}.\n\nResponsibilities:\n• Build and ship product features end to end\n• Collaborate with design and product\n• Write tested, maintainable code\n\nRequirements:\n• 3+ years with JavaScript/TypeScript, React, Node.js\n• Experience with PostgreSQL and REST APIs\n• Strong communication skills`;
   const appData = [
     { key: 'northwindSenior', position: 'Senior Full Stack Engineer', company: 'Northwind Cloud', status: 'Offer', salaryMin: 120000, salaryMax: 150000, appliedAgo: 34, source: 'https://www.linkedin.com/jobs/view/3912345678', notes: 'Strong process. Verbal offer received — negotiating equity.' },
     { key: 'helioBackend', position: 'Backend Engineer', company: 'Helio Fintech', status: 'Final_Interview', salaryMin: 110000, salaryMax: 140000, appliedAgo: 28, source: 'https://www.linkedin.com/jobs/view/3911112222', notes: 'Final panel scheduled. Prep system design.' },
@@ -119,7 +133,7 @@ async function main() {
         salaryMax: a.salaryMax,
         source: a.source || null,
         workMode: WORK_MODE[a.key] || null,
-        jobDescription: a.status === 'Draft' ? null : jd(a.position),
+        jobDescription: JOB_DESCRIPTIONS[a.key] || null,
         notes: a.notes || null,
         createdAt: a.appliedAgo == null ? daysAgo(2) : daysAgo(a.appliedAgo),
       },
@@ -182,9 +196,9 @@ async function main() {
 
   // --- Documents (real downloadable PDFs in storage) ---
   const docData = [
-    { name: 'Alex Demo — Résumé', type: 'Resume', filename: 'alex-demo-resume.pdf', lines: ['Alex Demo — Senior Full Stack Engineer', 'JavaScript · TypeScript · React · Node.js · PostgreSQL', 'Experience: 6 years building and shipping web products', 'Education: BS Computer Science'] },
-    { name: 'Backend-focused Résumé v2', type: 'Resume', filename: 'alex-demo-resume-backend.pdf', lines: ['Alex Demo — Backend Engineer', 'Node.js · Express · Prisma · PostgreSQL · AWS', 'Tailored for backend/platform roles'] },
-    { name: 'Cover Letter — Northwind Cloud', type: 'CoverLetter', filename: 'cover-letter-northwind.pdf', lines: ['Dear Northwind Cloud Hiring Team,', 'I am excited to apply for the Senior Full Stack Engineer role...', '— Alex Demo'] },
+    { name: 'Alex Demo — Résumé', type: 'Resume', filename: 'alex-demo-resume.pdf', lines: RESUME_FULL_STACK },
+    { name: 'Backend-focused Résumé v2', type: 'Resume', filename: 'alex-demo-resume-backend.pdf', lines: RESUME_BACKEND },
+    { name: 'Cover Letter — Northwind Cloud', type: 'CoverLetter', filename: 'cover-letter-northwind.pdf', lines: SAMPLE_COVER_LETTER },
   ];
   const docs = {};
   for (const d of docData) {
