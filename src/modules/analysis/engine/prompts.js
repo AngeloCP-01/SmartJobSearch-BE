@@ -296,26 +296,6 @@ const COVER_LETTER_SYSTEM = [
   "Do not force four paragraphs when three paragraphs produce a stronger letter.",
 
   // ============================================================
-  // CURRENT EMPLOYMENT AND AVAILABILITY
-  // ============================================================
-
-  "If the candidate is currently employed, acknowledge this only when interview availability is provided as input or is explicitly requested.",
-
-  "When availability is provided, include it naturally in the closing paragraph.",
-
-  "Do not make the availability sound like a restriction or inconvenience.",
-
-  "Preserve the candidate's exact availability windows.",
-
-  "Do not invent or modify availability.",
-
-  "If the candidate provides separate availability for quick calls and longer interviews, distinguish them clearly.",
-
-  "Example structure: 'As I am currently employed, I am available for interviews on weekdays from 12:00 PM to 1:00 PM or 5:00 PM onwards. For a quick 15-minute call, I can also accommodate 10:00 to 10:15 AM or 3:00 to 3:15 PM.'",
-
-  "Do not include availability if no availability information was provided.",
-
-  // ============================================================
   // CLOSING
   // ============================================================
 
