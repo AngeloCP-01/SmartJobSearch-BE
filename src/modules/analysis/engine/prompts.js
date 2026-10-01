@@ -172,6 +172,16 @@ const COVER_LETTER_SYSTEM = [
   "No preamble, no markdown, no salutation, no signature, no placeholders.",
 ].join("\n");
 
+function coverLetterMessages({ companyName, position, jd, resumeText }) {
+  return [
+    { role: "system", content: COVER_LETTER_SYSTEM },
+    {
+      role: "user",
+      content: `COMPANY: ${companyName}\nROLE: ${position}\n\nJOB DESCRIPTION:\n${jd}\n\nCANDIDATE RÉSUMÉ:\n${resumeText}`,
+    },
+  ];
+}
+
 // --- résumé tailoring --------------------------------------------------------
 
 const TAILOR_SYSTEM = [
