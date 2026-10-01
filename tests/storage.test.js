@@ -56,7 +56,7 @@ test('readBuffer surfaces a read failure as a friendly 503 (not a raw 500)', asy
 const local = require('../src/shared/storage/drivers/local');
 
 test('local ping resolves true when the upload dir is writable', async () => {
-  process.env.UPLOAD_DIR = path.join(os.tmpdir(), 'jobtrail-ping-test');
+  process.env.UPLOAD_DIR = path.join(os.tmpdir(), 'applylark-ping-test');
   await expect(local.ping()).resolves.toBe(true);
   delete process.env.UPLOAD_DIR;
 });

@@ -1,7 +1,7 @@
 {
-  "name": "jobtrail-be",
+  "name": "applylark-be",
   "version": "1.0.0",
-  "description": "JobTrail backend API (v1)",
+  "description": "Applylark backend API (v1)",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",

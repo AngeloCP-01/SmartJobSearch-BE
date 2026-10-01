@@ -1,9 +1,9 @@
-# JobTrail — API
+# Applylark — API
 
-Modular-monolith REST API for JobTrail, a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, an **AI-assisted résumé/ATS analysis** engine, AI cover letters, **RAG-grounded résumé tailoring**, and an in-app rich-text **document editor**.
+Modular-monolith REST API for Applylark, a multi-user job-search CRM: auth, companies, applications (Kanban status), interviews, contacts, documents, an activity log, a reminders feed, an **AI-assisted résumé/ATS analysis** engine, AI cover letters, **RAG-grounded résumé tailoring**, and an in-app rich-text **document editor**.
 
 [![Backend CI](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml/badge.svg)](https://github.com/AngeloCP-01/SmartJobSearch-BE/actions/workflows/ci.yml)
-&nbsp;**[▶ Live demo](https://jobtrail-hq.vercel.app)** · **[Frontend repo](https://github.com/AngeloCP-01/SmartJobSearch-FE)** · **[Deploy guide](./DEPLOY.md)**
+&nbsp;**[▶ Live demo](https://applylark.vercel.app)** · **[Frontend repo](https://github.com/AngeloCP-01/SmartJobSearch-FE)** · **[Deploy guide](./DEPLOY.md)**
 
 ## Stack
 

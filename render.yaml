@@ -23,7 +23,8 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      # Exact frontend origin, e.g. https://smartjobsearch.vercel.app (no trailing slash).
+      # Exact frontend origin, e.g. https://applylark.vercel.app (no trailing slash).
+      # Comma-separate to allow two origins during a domain move.
       - key: CORS_ORIGIN
         sync: false
       # Object storage for uploads (Supabase Storage / Cloudflare R2 / S3).

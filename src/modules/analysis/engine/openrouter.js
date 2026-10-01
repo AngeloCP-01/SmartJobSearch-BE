@@ -158,8 +158,8 @@ async function chat(modelSpec, { messages, responseFormat, temperature = 0, maxT
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://jobtrail.local',
-          'X-Title': 'JobTrail',
+          'HTTP-Referer': 'https://applylark.local',
+          'X-Title': 'Applylark',
         },
         body: JSON.stringify(body),
       });
